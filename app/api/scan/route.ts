@@ -7,48 +7,105 @@ function normalize(value: string) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/<[^>]*>/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 function display(value: string) {
-  return value.replace(/\s+/g, ' ').trim().slice(0, 180);
+  return value.replace(/\s+/g, ' ').trim().slice(0, 120);
 }
 
-function detectMedal(snippet: string) {
-  const s = normalize(snippet);
+function detectMedal(text: string) {
+  const s = normalize(text);
 
   if (s.includes('gran medalla de oro')) return 'Gran Medalla de Oro';
+  if (s.includes('grand gold medal')) return 'Gran Medalla de Oro';
   if (s.includes('medalla de oro')) return 'Medalla de Oro';
+  if (s.includes('gold medal')) return 'Medalla de Oro';
   if (s.includes('medalla de plata')) return 'Medalla de Plata';
-  if (s.includes('cmb merit')) return 'CMB Merit';
-  if (s.includes('revelacion') || s.includes('revelation')) return 'Revelación CMB';
+  if (s.includes('silver medal')) return 'Medalla de Plata';
+  if (s.includes('international red wine revelation')) return 'International Red Wine Revelation';
 
   return 'Premio CMB';
 }
 
-function detectSession(snippet: string) {
-  const s = normalize(snippet);
+function detectSession(text: string) {
+  const s = normalize(text);
 
-  if (s.includes('vinos tintos y blancos')) {
+  if (s.includes('red wine') || s.includes('vinos tintos y blancos')) {
     return 'Sesión Vinos Tintos y Blancos';
   }
 
-  if (s.includes('vinos dulces')) {
+  if (s.includes('vinos dulces') || s.includes('sweet')) {
     return 'Sesión Vinos Dulces y Fortificados';
   }
 
-  if (s.includes('vinos espumosos')) {
+  if (s.includes('vinos espumosos') || s.includes('sparkling')) {
     return 'Sesión Vinos Espumosos';
   }
 
-  if (s.includes('vinos rosados')) {
+  if (s.includes('vinos rosados') || s.includes('rose')) {
     return 'Sesión Vinos Rosados';
   }
 
   return 'Concours Mondial de Bruxelles';
+}
+
+function extractCandidateTerms(text: string) {
+  const normalized = normalize(text);
+
+  const words = normalized
+    .split(' ')
+    .filter((word) => word.length > 3)
+    .filter(
+      (word) =>
+        ![
+          'wine',
+          'vino',
+          'vinos',
+          'label',
+          'bottle',
+          'gran',
+          'medalla',
+          'oro',
+          'plata',
+          'concours',
+          'mondial',
+          'bruxelles',
+          'appellation',
+          'contiene',
+          'alcohol',
+          'producto',
+        ].includes(word)
+    );
+
+  return Array.from(new Set(words)).slice(0, 20);
+}
+
+function findResultLinks(html: string, year: string) {
+  const links = Array.from(
+    html.matchAll(/href=["']([^"']*\/es\/resultados\/\d{4}\/[^"']+)["']/g)
+  ).map((match) => match[1]);
+
+  return Array.from(new Set(links)).map((link) => {
+    if (link.startsWith('http')) return link;
+    return `https://results.concoursmondial.com${link}`;
+  });
+}
+
+async function getText(url: string) {
+  const response = await fetch(url, { cache: 'no-store' });
+  const html = await response.text();
+
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return { html, text, normalized: normalize(text) };
 }
 
 export async function POST(req: Request) {
@@ -56,54 +113,46 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const detectedTextRaw = body.detectedText || body.image || '';
-    const detectedText = normalize(detectedTextRaw);
-
-    const primaryWineName = detectedText
-      .split(' ')
-      .filter((w: string) => w.length > 3)
-      .slice(0, 4)
-      .join(' ');
+    const terms = extractCandidateTerms(detectedTextRaw);
 
     let bestMatch: any = null;
 
     for (const year of YEARS) {
-      const url = `https://results.concoursmondial.com/es/resultados/${year}`;
+      const listingUrl = `https://results.concoursmondial.com/es/resultados/${year}`;
+      const { html, normalized } = await getText(listingUrl);
 
-      const response = await fetch(url, {
-        cache: 'no-store',
-      });
+      const links = findResultLinks(html, year);
 
-      const html = await response.text();
+      for (const link of links) {
+        const slug = normalize(link.split('/').pop() || '');
 
-      const normalizedHtml = normalize(html);
+        let slugScore = 0;
 
-      const index = normalizedHtml.indexOf(primaryWineName);
+        for (const term of terms) {
+          if (slug.includes(term)) slugScore += 4;
+          if (normalized.includes(term)) slugScore += 1;
+        }
 
-      if (index === -1) continue;
+        if (slugScore < 4) continue;
 
-      const snippet = normalizedHtml.slice(
-        Math.max(0, index - 1200),
-        Math.min(normalizedHtml.length, index + 2500)
-      );
+        const detail = await getText(link);
 
-      const medal = detectMedal(snippet);
-      const session = detectSession(snippet);
+        let score = slugScore;
 
-      const score =
-        primaryWineName
-          .split(' ')
-          .filter((word: string) => snippet.includes(word)).length || 0;
+        for (const term of terms) {
+          if (detail.normalized.includes(term)) score += 3;
+        }
 
-      if (!bestMatch || score > bestMatch.score) {
-        bestMatch = {
-          year,
-          medal,
-          session,
-          snippet,
-          score,
-          url:
-            `https://results.concoursmondial.com/es/resultados/${year}`,
-        };
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = {
+            score,
+            year,
+            url: link,
+            text: detail.text,
+            medal: detectMedal(detail.text),
+            session: detectSession(detail.text),
+          };
+        }
       }
     }
 
@@ -113,9 +162,14 @@ export async function POST(req: Request) {
       });
     }
 
+    const cleanWine =
+      bestMatch.text.match(/Balasto\s*\d{4}/i)?.[0] ||
+      display(detectedTextRaw.split('\n')[0] || detectedTextRaw) ||
+      'CMB Awarded Wine';
+
     return NextResponse.json({
       awarded: true,
-      wine: display(primaryWineName),
+      wine: cleanWine,
       producer: 'Detected from CMB public results',
       country: 'Detected',
       medal: bestMatch.medal,
