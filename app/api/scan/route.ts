@@ -150,7 +150,7 @@ if (detectedNormalized.includes('balasto')) {
     session: 'Sesión Vinos Tintos y Blancos · 2024',
     feedbackUrl:
       'https://results.concoursmondial.com/es/resultados/2024/219365-balasto-2017',
-    productImageUrl: https://docs.concoursmondial.com/linked/CMB2024/reg/85333/41c5c9cf-c686-45f4-95f9-afe85d6e3631.png
+    productImageUrl: 'https://docs.concoursmondial.com/linked/CMB2024/reg/85333/41c5c9cf-c686-45f4-95f9-afe85d6e3631.png'
   });
 }
     const terms = extractCandidateTerms(detectedTextRaw);
