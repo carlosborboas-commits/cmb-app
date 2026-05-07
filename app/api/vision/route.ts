@@ -18,14 +18,41 @@ export async function POST(req: Request) {
     }
 
     const response = await client.responses.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4.1',
       input: [
         {
           role: 'user',
           content: [
             {
               type: 'input_text',
-              text: `Analyze this wine label image. Return ONLY valid JSON with: wineName, producer, vintage, countryOrRegion, confidence, rawText.`,
+              text: `
+You are analyzing a photograph of a wine bottle label.
+
+Your job is NOT to be overly cautious.
+Extract the most likely wine information visible on the label.
+
+Return ONLY valid JSON. No markdown. No explanation.
+
+JSON structure:
+{
+  "wineName": "",
+  "producer": "",
+  "vintage": "",
+  "countryOrRegion": "",
+  "confidence": 0,
+  "rawText": ""
+}
+
+Instructions:
+- wineName: the largest or most distinctive wine name, cuvée name, vineyard name, or label name.
+- producer: winery, château, domaine, bodega, maison, estate, or brand.
+- vintage: year if visible.
+- countryOrRegion: appellation, region, country, valley, DO, DOC, AOC, AVA if visible.
+- rawText: transcribe all readable label text, even partial.
+- If uncertain, make the best possible guess from visible text.
+- confidence should reflect certainty from 0 to 1.
+- Do not return "not detected" unless the image contains no readable label text at all.
+              `,
             },
             {
               type: 'input_image',
