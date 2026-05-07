@@ -8,7 +8,6 @@ const client = new OpenAI({
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
     const image = body?.image;
 
     if (!image) {
@@ -18,18 +17,19 @@ export async function POST(req: Request) {
         vintage: '',
         countryOrRegion: '',
         confidence: 0,
-        rawText: '',
-        debug: 'No image received',
+        rawText: 'DEBUG: No image received by API',
       });
     }
 
+    const imageInfo = `DEBUG IMAGE RECEIVED. Length: ${image.length}. Starts with: ${String(image).slice(0, 40)}`;
+
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
           content:
-            'You analyze wine labels and extract visible wine information.',
+            'You are a wine label recognition system. You must read visible text from wine labels.',
         },
         {
           role: 'user',
@@ -37,11 +37,10 @@ export async function POST(req: Request) {
             {
               type: 'text',
               text: `
-Analyze this wine label image.
+Read this wine label image carefully.
 
-Return ONLY valid JSON.
+Return ONLY valid JSON with this exact structure:
 
-Format:
 {
   "wineName": "",
   "producer": "",
@@ -52,29 +51,27 @@ Format:
 }
 
 Rules:
-- Extract ALL readable text.
-- Never say "not detected".
-- rawText must contain all readable text.
-- confidence from 0 to 1.
+- rawText must include every readable word you can see.
+- Do not write "not detected".
+- If you are unsure, guess from visible text.
+- If the image is unclear, describe what you see in rawText.
               `,
             },
             {
               type: 'image_url',
               image_url: {
                 url: image,
+                detail: 'high',
               },
             },
           ],
         },
       ],
-      temperature: 0.2,
-      max_tokens: 500,
+      temperature: 0,
+      max_tokens: 700,
     });
 
-    const text =
-      completion.choices?.[0]?.message?.content || '';
-
-    console.log('VISION RAW:', text);
+    const text = completion.choices?.[0]?.message?.content || '';
 
     let parsed;
 
@@ -87,22 +84,22 @@ Rules:
         vintage: '',
         countryOrRegion: '',
         confidence: 0,
-        rawText: text,
+        rawText: `NON JSON RESPONSE: ${text}`,
       };
     }
 
-    return NextResponse.json(parsed);
+    return NextResponse.json({
+      ...parsed,
+      rawText: `${parsed.rawText || ''}\n\n${imageInfo}`,
+    });
   } catch (error: any) {
-    console.error('VISION ERROR:', error);
-
     return NextResponse.json({
       wineName: '',
       producer: '',
       vintage: '',
       countryOrRegion: '',
       confidence: 0,
-      rawText: '',
-      debug: String(error?.message || error),
+      rawText: `VISION ERROR: ${String(error?.message || error)}`,
     });
   }
 }
