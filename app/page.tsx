@@ -42,7 +42,7 @@ function ProductImage({ url, wine }: { url: string | null; wine: string }) {
     );
   }
 
-  return <img src={url} alt={wine} className="h-72 w-full object-cover" />;
+  return <img src={url} alt={wine} className="h-72 w-full object-contain" />;
 }
 
 type VisionResult = {
@@ -212,7 +212,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gradient-to-b from-stone-950 to-black text-white">
       <div className="mx-auto min-h-screen max-w-md px-4 pb-10 pt-6">
         <div className="mb-6 flex items-center justify-between">
           <BrandMark />
