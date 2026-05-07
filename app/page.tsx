@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Tesseract from 'tesseract.js';
 import {
   ExternalLink,
   MapPin,
@@ -19,8 +18,12 @@ function BrandMark() {
         <Crown className="h-6 w-6 text-amber-300" />
       </div>
       <div>
-        <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">Official</div>
-        <div className="text-sm font-medium tracking-[0.14em] text-white">CMB</div>
+        <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">
+          Official
+        </div>
+        <div className="text-sm font-medium tracking-[0.14em] text-white">
+          CMB
+        </div>
       </div>
     </div>
   );
@@ -31,7 +34,9 @@ function ProductImage({ url, wine }: { url: string | null; wine: string }) {
     return (
       <div className="flex h-72 w-full flex-col items-center justify-center gap-3 bg-black">
         <Crown className="h-10 w-10 text-amber-300" />
-        <div className="text-sm uppercase tracking-[0.3em] text-stone-400">CMB Record</div>
+        <div className="text-sm uppercase tracking-[0.3em] text-stone-400">
+          CMB Record
+        </div>
         <div className="text-white">{wine}</div>
       </div>
     );
@@ -39,6 +44,15 @@ function ProductImage({ url, wine }: { url: string | null; wine: string }) {
 
   return <img src={url} alt={wine} className="h-72 w-full object-cover" />;
 }
+
+type VisionResult = {
+  wineName: string;
+  producer: string;
+  vintage: string;
+  countryOrRegion: string;
+  confidence: number;
+  rawText: string;
+};
 
 type ScanResult =
   | {
@@ -63,14 +77,28 @@ type Region = {
   }[];
 };
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      resolve(reader.result as string);
+    };
+
+    reader.onerror = reject;
+
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function Page() {
   const [scanResult, setScanResult] = useState<ScanResult>(null);
+  const [visionResult, setVisionResult] = useState<VisionResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [regions, setRegions] = useState<Region[]>([]);
   const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
-  const [ocrText, setOcrText] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
-  const [ocrStatus, setOcrStatus] = useState('');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
     async function loadRestaurants() {
@@ -86,26 +114,20 @@ export default function Page() {
     loadRestaurants();
   }, []);
 
-  const sendToScan = async (detectedText: string) => {
-    setLoading(true);
-    setOcrText(detectedText);
-    setScanResult(null);
+  const scanCMBResults = async (detectedText: string) => {
+    const res = await fetch('/api/scan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        detectedText,
+        image: detectedText,
+      }),
+    });
 
-    try {
-      const res = await fetch('/api/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ detectedText, image: detectedText }),
-      });
-
-      const data = await res.json();
-      setScanResult(data);
-    } catch (e) {
-      console.error(e);
-      setScanResult({ awarded: false });
-    }
-
-    setLoading(false);
+    const data = await res.json();
+    setScanResult(data);
   };
 
   const handlePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,35 +135,51 @@ export default function Page() {
 
     if (!file) return;
 
-    setScanResult(null);
-    setOcrText('');
-    setOcrStatus('Preparing image...');
     setLoading(true);
-
-    const imageUrl = URL.createObjectURL(file);
-    setPreview(imageUrl);
+    setStatus('Preparing image...');
+    setPreview(null);
+    setVisionResult(null);
+    setScanResult(null);
 
     try {
-      setOcrStatus('Reading label text...');
+      const imageBase64 = await fileToBase64(file);
 
-      const result = await Tesseract.recognize(file, 'eng+spa', {
-        logger: (m) => {
-          if (m.status) setOcrStatus(m.status);
+      setPreview(imageBase64);
+      setStatus('Reading label with AI vision...');
+
+      const visionResponse = await fetch('/api/vision', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          image: imageBase64,
+        }),
       });
 
-      const text = result.data.text || '';
+      const visionData = await visionResponse.json();
 
-      console.log('OCR TEXT:', text);
+      setVisionResult(visionData);
 
-      await sendToScan(text);
+      const detectedText = [
+        visionData.wineName,
+        visionData.producer,
+        visionData.vintage,
+        visionData.countryOrRegion,
+        visionData.rawText,
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      setStatus('Checking CMB public results...');
+
+      await scanCMBResults(detectedText);
     } catch (err) {
       console.error(err);
-      setOcrText('');
       setScanResult({ awarded: false });
     } finally {
       setLoading(false);
-      setOcrStatus('');
+      setStatus('');
     }
   };
 
@@ -166,7 +204,8 @@ export default function Page() {
           </h1>
 
           <p className="mt-4 text-sm leading-relaxed text-stone-400">
-            Take a high-resolution photo of a wine label and check if it appears in CMB public results.
+            Take a high-resolution photo of a wine label. AI vision will extract
+            the wine name and check it against CMB public results.
           </p>
         </div>
 
@@ -200,7 +239,8 @@ export default function Page() {
               </h2>
 
               <p className="mt-2 text-sm leading-relaxed text-stone-400">
-                Use the phone camera to take a sharp, close photo of the label. Fill the frame with the wine name.
+                Use the phone camera. Fill the frame with the wine name and keep
+                the label as sharp as possible.
               </p>
 
               <label className="mt-6 inline-flex cursor-pointer items-center justify-center rounded-xl bg-amber-300 px-6 py-3 text-sm font-medium text-black">
@@ -217,7 +257,11 @@ export default function Page() {
 
             {preview && (
               <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
-                <img src={preview} alt="Captured label" className="w-full object-cover" />
+                <img
+                  src={preview}
+                  alt="Captured label"
+                  className="w-full object-cover"
+                />
               </div>
             )}
 
@@ -225,24 +269,54 @@ export default function Page() {
               <h2 className="text-2xl font-semibold">Result</h2>
 
               <p className="mt-2 text-sm text-stone-400">
-                OCR + CMB public results matching
+                AI vision + CMB public results matching
               </p>
 
               {loading && (
                 <div className="mt-6 flex items-center gap-3 rounded-2xl border border-amber-300/20 bg-black p-4 text-sm text-amber-200">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  {ocrStatus || 'Processing...'}
+                  {status || 'Processing...'}
                 </div>
               )}
 
-              {ocrText && (
+              {visionResult && (
                 <div className="mt-4 rounded-2xl border border-white/10 bg-black p-4">
                   <div className="text-[10px] uppercase tracking-[0.25em] text-amber-300">
-                    OCR Text
+                    AI Vision Reading
                   </div>
 
-                  <div className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-stone-300">
-                    {ocrText || 'No text detected'}
+                  <div className="mt-3 space-y-2 text-xs leading-relaxed text-stone-300">
+                    <div>
+                      <span className="text-stone-500">Wine:</span>{' '}
+                      {visionResult.wineName || 'Not detected'}
+                    </div>
+
+                    <div>
+                      <span className="text-stone-500">Producer:</span>{' '}
+                      {visionResult.producer || 'Not detected'}
+                    </div>
+
+                    <div>
+                      <span className="text-stone-500">Vintage:</span>{' '}
+                      {visionResult.vintage || 'Not detected'}
+                    </div>
+
+                    <div>
+                      <span className="text-stone-500">Region:</span>{' '}
+                      {visionResult.countryOrRegion || 'Not detected'}
+                    </div>
+
+                    <div>
+                      <span className="text-stone-500">Confidence:</span>{' '}
+                      {Math.round((visionResult.confidence || 0) * 100)}%
+                    </div>
+
+                    <div className="pt-2">
+                      <span className="text-stone-500">Raw text:</span>
+                      <div className="mt-1 whitespace-pre-wrap">
+                        {visionResult.rawText || 'No text detected'}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -256,7 +330,10 @@ export default function Page() {
               {scanResult?.awarded === true && (
                 <div className="mt-6 space-y-4">
                   <div className="overflow-hidden rounded-[28px] border border-amber-400/20">
-                    <ProductImage url={scanResult.productImageUrl} wine={scanResult.wine} />
+                    <ProductImage
+                      url={scanResult.productImageUrl}
+                      wine={scanResult.wine}
+                    />
                   </div>
 
                   <div className="flex items-center gap-2 text-amber-300">
@@ -301,7 +378,10 @@ export default function Page() {
 
                 <div className="mt-4 grid gap-3">
                   {group.restaurants.map((r, i) => (
-                    <div key={i} className="rounded-2xl border border-white/10 p-4">
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-white/10 p-4"
+                    >
                       <div className="font-semibold text-white">{r.name}</div>
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
