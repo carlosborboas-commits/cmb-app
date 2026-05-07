@@ -1,75 +1,80 @@
 import OpenAI from 'openai';
 import { NextResponse } from 'next/server';
 
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
     const image = body?.image;
 
     if (!image) {
-      return NextResponse.json(
-        {
-          wineName: '',
-          producer: '',
-          vintage: '',
-          countryOrRegion: '',
-          confidence: 0,
-          rawText: '',
-          debug: 'No image received by /api/vision',
-        },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        wineName: '',
+        producer: '',
+        vintage: '',
+        countryOrRegion: '',
+        confidence: 0,
+        rawText: '',
+        debug: 'No image received',
+      });
     }
 
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
-    const response = await client.responses.create({
-      model: 'gpt-4.1-mini',
-      input: [
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You analyze wine labels and extract visible wine information.',
+        },
         {
           role: 'user',
           content: [
             {
-              type: 'input_text',
+              type: 'text',
               text: `
-You are reading a wine bottle label.
+Analyze this wine label image.
 
-Do your best to extract visible text and identify:
-- wine name
-- producer / winery / brand
-- vintage
-- region or country
+Return ONLY valid JSON.
 
-Return ONLY valid JSON:
+Format:
 {
   "wineName": "",
   "producer": "",
   "vintage": "",
   "countryOrRegion": "",
   "confidence": 0,
-  "rawText": "",
-  "debug": ""
+  "rawText": ""
 }
 
-Important:
-- Never return "not detected".
-- If unsure, put the readable words in rawText and explain briefly in debug.
+Rules:
+- Extract ALL readable text.
+- Never say "not detected".
+- rawText must contain all readable text.
 - confidence from 0 to 1.
               `,
             },
             {
-              type: 'input_image',
-              image_url: image,
-              detail: 'high',
+              type: 'image_url',
+              image_url: {
+                url: image,
+              },
             },
           ],
         },
       ],
+      temperature: 0.2,
+      max_tokens: 500,
     });
 
-    const text = response.output_text || '';
+    const text =
+      completion.choices?.[0]?.message?.content || '';
+
+    console.log('VISION RAW:', text);
 
     let parsed;
 
@@ -83,7 +88,6 @@ Important:
         countryOrRegion: '',
         confidence: 0,
         rawText: text,
-        debug: 'OpenAI returned non-JSON text',
       };
     }
 
@@ -91,17 +95,14 @@ Important:
   } catch (error: any) {
     console.error('VISION ERROR:', error);
 
-    return NextResponse.json(
-      {
-        wineName: '',
-        producer: '',
-        vintage: '',
-        countryOrRegion: '',
-        confidence: 0,
-        rawText: '',
-        debug: String(error?.message || error || 'Unknown vision error'),
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      wineName: '',
+      producer: '',
+      vintage: '',
+      countryOrRegion: '',
+      confidence: 0,
+      rawText: '',
+      debug: String(error?.message || error),
+    });
   }
 }
