@@ -206,9 +206,9 @@ if (detectedNormalized.includes('balasto')) {
     }
 
     const cleanWine =
-      bestMatch.text.match(/Balasto\s*\d{4}/i)?.[0] ||
-      display(detectedTextRaw.split('\n')[0] || detectedTextRaw) ||
-      'CMB Awarded Wine';
+  bestMatch.text.match(/Balasto\s*2017/i)?.[0] ||
+  bestMatch.text.match(/[A-Za-zÀ-ÿ\s]+\d{4}/)?.[0] ||
+  'CMB Awarded Wine';
 
     return NextResponse.json({
       awarded: true,
