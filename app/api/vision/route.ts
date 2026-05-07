@@ -5,6 +5,22 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function extractJson(text: string) {
+  const cleaned = text
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  const first = cleaned.indexOf('{');
+  const last = cleaned.lastIndexOf('}');
+
+  if (first === -1 || last === -1) {
+    return cleaned;
+  }
+
+  return cleaned.slice(first, last + 1);
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -17,11 +33,9 @@ export async function POST(req: Request) {
         vintage: '',
         countryOrRegion: '',
         confidence: 0,
-        rawText: 'DEBUG: No image received by API',
+        rawText: 'No image received',
       });
     }
-
-    const imageInfo = `DEBUG IMAGE RECEIVED. Length: ${image.length}. Starts with: ${String(image).slice(0, 40)}`;
 
     const completion = await client.chat.completions.create({
       model: 'gpt-4o',
@@ -29,7 +43,7 @@ export async function POST(req: Request) {
         {
           role: 'system',
           content:
-            'You are a wine label recognition system. You must read visible text from wine labels.',
+            'You are a wine label recognition system. Return only valid JSON. Never use markdown fences.',
         },
         {
           role: 'user',
@@ -52,9 +66,10 @@ Return ONLY valid JSON with this exact structure:
 
 Rules:
 - rawText must include every readable word you can see.
-- Do not write "not detected".
-- If you are unsure, guess from visible text.
-- If the image is unclear, describe what you see in rawText.
+- Do not use markdown.
+- Do not wrap the JSON in \`\`\`.
+- If uncertain, put the readable text in rawText.
+- confidence from 0 to 1.
               `,
             },
             {
@@ -72,11 +87,12 @@ Rules:
     });
 
     const text = completion.choices?.[0]?.message?.content || '';
+    const jsonText = extractJson(text);
 
     let parsed;
 
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(jsonText);
     } catch {
       parsed = {
         wineName: '',
@@ -84,14 +100,11 @@ Rules:
         vintage: '',
         countryOrRegion: '',
         confidence: 0,
-        rawText: `NON JSON RESPONSE: ${text}`,
+        rawText: text,
       };
     }
 
-    return NextResponse.json({
-      ...parsed,
-      rawText: `${parsed.rawText || ''}\n\n${imageInfo}`,
-    });
+    return NextResponse.json(parsed);
   } catch (error: any) {
     return NextResponse.json({
       wineName: '',
