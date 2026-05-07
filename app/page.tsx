@@ -149,7 +149,7 @@ export default function Page() {
     if (data.awarded) {
       setScanResult({
         ...data,
-        wine: displayName || 'CMB Awarded Wine',
+        wine: data.wine || displayName || 'CMB Awarded Wine',
       });
     } else {
       setScanResult(data);
