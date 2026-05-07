@@ -9,13 +9,6 @@ function cleanText(value: string) {
     .toLowerCase();
 }
 
-export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    message: 'scan route is alive',
-  });
-}
-
 export async function POST(req: Request) {
   const body = await req.json();
 
@@ -27,8 +20,8 @@ export async function POST(req: Request) {
     });
   }
 
-  // 🔥 OCR temporal simulado
-  const detectedWine = 'méxico';
+  // 🔥 Simulación OCR temporal
+  const detectedWine = 'Casa Madero';
 
   const response = await fetch(
     'https://results.concoursmondial.com/es/resultados/2025',
@@ -41,7 +34,9 @@ export async function POST(req: Request) {
 
   const text = cleanText(html);
 
-  const found = text.includes(detectedWine);
+  const found = text.includes(
+    detectedWine.toLowerCase()
+  );
 
   if (!found) {
     return NextResponse.json({
@@ -51,10 +46,10 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     awarded: true,
-    wine: detectedWine.toUpperCase(),
-    producer: 'Detected in official CMB public results',
+    wine: detectedWine,
+    producer: 'Detected in official CMB results',
     country: 'Mexico',
-    medal: 'Public result detected',
+    medal: 'Award detected',
     session: 'Concours Mondial de Bruxelles 2025',
     feedbackUrl:
       'https://results.concoursmondial.com/es/resultados/2025',

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Tesseract from 'tesseract.js';
 import {
   ExternalLink,
   MapPin,
@@ -9,6 +10,7 @@ import {
   XCircle,
   Circle,
   Loader2,
+  Camera,
 } from 'lucide-react';
 
 function BrandMark() {
@@ -17,12 +19,10 @@ function BrandMark() {
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-300/20 to-white/5">
         <Crown className="h-6 w-6 text-amber-300" />
       </div>
-
       <div>
         <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">
           Official
         </div>
-
         <div className="text-sm font-medium tracking-[0.14em] text-white">
           CMB
         </div>
@@ -35,47 +35,59 @@ function CameraReal({
   onCapture,
   loading,
 }: {
-  onCapture: (imageBase64: string) => void;
+  onCapture: (detectedText: string) => void;
   loading: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  useEffect(() => {
-    let stream: MediaStream | null = null;
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState('');
+  const [cameraStarted, setCameraStarted] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
 
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false,
-        });
+  const startCamera = async () => {
+    setCameraError('');
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.error(err);
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+
+      setStream(mediaStream);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
       }
+
+      setCameraStarted(true);
+    } catch (err) {
+      console.error('Camera error:', err);
+      setCameraError(
+        'No se pudo abrir la cámara. Revisa permisos del navegador o prueba en Chrome.'
+      );
+      setCameraStarted(false);
     }
+  };
 
-    startCamera();
-
+  useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      stream?.getTracks().forEach((track) => track.stop());
     };
-  }, []);
+  }, [stream]);
 
-  const capture = () => {
+  const capture = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (!video || !canvas || !video.videoWidth) return;
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
+      setCameraError('La cámara aún no está lista. Espera un segundo e intenta de nuevo.');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-
     if (!ctx) return;
 
     canvas.width = video.videoWidth;
@@ -85,40 +97,90 @@ function CameraReal({
 
     const imageBase64 = canvas.toDataURL('image/jpeg');
 
-    onCapture(imageBase64);
+    setOcrLoading(true);
+
+    try {
+      const result = await Tesseract.recognize(imageBase64, 'eng');
+      const text = result.data.text || '';
+
+      console.log('OCR TEXT:', text);
+
+      onCapture(text);
+    } catch (err) {
+      console.error('OCR error:', err);
+      onCapture('');
+    } finally {
+      setOcrLoading(false);
+    }
   };
 
   return (
-    <div className="relative h-[520px] overflow-hidden rounded-[32px] border border-amber-300/10 bg-black shadow-2xl">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover"
-      />
+    <div className="relative overflow-hidden rounded-[32px] border border-amber-300/10 bg-black shadow-2xl">
+      <div className="relative h-[520px]">
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover"
+        />
 
-      <canvas ref={canvasRef} className="hidden" />
+        <canvas ref={canvasRef} className="hidden" />
 
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="h-56 w-40 rounded-xl border border-amber-300/40" />
-      </div>
+        {!cameraStarted && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
+            <Camera className="h-12 w-12 text-amber-300" />
 
-      <div className="absolute top-4 left-0 right-0 text-center text-xs uppercase tracking-[0.3em] text-stone-300">
-        Align bottle label
-      </div>
+            <div>
+              <div className="text-xl font-semibold text-white">
+                Camera access required
+              </div>
 
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center">
-        <button
-          onClick={capture}
-          disabled={loading}
-          className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-black"
-        >
-          {loading ? (
-            <Loader2 className="h-7 w-7 animate-spin text-white" />
-          ) : (
-            <Circle className="h-7 w-7 text-white" />
-          )}
-        </button>
+              <p className="mt-2 text-sm leading-relaxed text-stone-400">
+                Press Start camera to activate your device camera.
+              </p>
+            </div>
+
+            <button
+              onClick={startCamera}
+              className="rounded-xl bg-amber-300 px-6 py-3 text-sm font-medium text-black"
+            >
+              Start camera
+            </button>
+
+            {cameraError && (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                {cameraError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {cameraStarted && (
+          <>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-56 w-40 rounded-xl border border-amber-300/40" />
+            </div>
+
+            <div className="absolute top-4 left-0 right-0 text-center text-xs uppercase tracking-[0.3em] text-stone-300">
+              Align bottle label
+            </div>
+
+            <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+              <button
+                onClick={capture}
+                disabled={loading || ocrLoading}
+                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-black"
+              >
+                {loading || ocrLoading ? (
+                  <Loader2 className="h-7 w-7 animate-spin text-white" />
+                ) : (
+                  <Circle className="h-7 w-7 text-white" />
+                )}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -145,13 +207,7 @@ function ProductImage({
     );
   }
 
-  return (
-    <img
-      src={url}
-      alt={wine}
-      className="h-72 w-full object-cover"
-    />
-  );
+  return <img src={url} alt={wine} className="h-72 w-full object-cover" />;
 }
 
 type ScanResult =
@@ -181,20 +237,16 @@ type Region = {
 
 export default function Page() {
   const [scanResult, setScanResult] = useState<ScanResult>(null);
-
   const [loading, setLoading] = useState(false);
-
   const [regions, setRegions] = useState<Region[]>([]);
-
   const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
+  const [ocrText, setOcrText] = useState('');
 
   useEffect(() => {
     async function loadRestaurants() {
       try {
         const res = await fetch('/api/restaurants');
-
         const data = await res.json();
-
         setRegions(data);
       } catch (e) {
         console.error(e);
@@ -204,8 +256,9 @@ export default function Page() {
     loadRestaurants();
   }, []);
 
-  const handleCapture = async (imageBase64: string) => {
+  const handleCapture = async (detectedText: string) => {
     setLoading(true);
+    setOcrText(detectedText);
 
     try {
       const res = await fetch('/api/scan', {
@@ -214,16 +267,15 @@ export default function Page() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          image: imageBase64,
+          image: detectedText,
+          detectedText,
         }),
       });
 
       const data = await res.json();
-
       setScanResult(data);
     } catch (e) {
       console.error(e);
-
       setScanResult({
         awarded: false,
       });
@@ -262,9 +314,7 @@ export default function Page() {
           <button
             onClick={() => setTab('scanner')}
             className={`rounded-xl px-4 py-3 ${
-              tab === 'scanner'
-                ? 'bg-amber-300 text-black'
-                : 'text-white'
+              tab === 'scanner' ? 'bg-amber-300 text-black' : 'text-white'
             }`}
           >
             Camera Scan
@@ -273,9 +323,7 @@ export default function Page() {
           <button
             onClick={() => setTab('restaurants')}
             className={`rounded-xl px-4 py-3 ${
-              tab === 'restaurants'
-                ? 'bg-amber-300 text-black'
-                : 'text-white'
+              tab === 'restaurants' ? 'bg-amber-300 text-black' : 'text-white'
             }`}
           >
             Restaurants
@@ -284,10 +332,7 @@ export default function Page() {
 
         {tab === 'scanner' && (
           <div className="mt-6 space-y-6">
-            <CameraReal
-              onCapture={handleCapture}
-              loading={loading}
-            />
+            <CameraReal onCapture={handleCapture} loading={loading} />
 
             <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6">
               <h2 className="text-2xl font-semibold">Result</h2>
@@ -295,6 +340,18 @@ export default function Page() {
               <p className="mt-2 text-sm text-stone-400">
                 Binary response from CMB database
               </p>
+
+              {ocrText && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-black p-4">
+                  <div className="text-[10px] uppercase tracking-[0.25em] text-amber-300">
+                    OCR Text
+                  </div>
+
+                  <div className="mt-2 text-xs leading-relaxed text-stone-300">
+                    {ocrText}
+                  </div>
+                </div>
+              )}
 
               {!scanResult && (
                 <div className="py-14 text-center text-stone-500">
@@ -336,9 +393,7 @@ export default function Page() {
                 <div className="py-10 text-center">
                   <XCircle className="mx-auto mb-3 h-10 w-10 text-red-500" />
 
-                  <div className="text-xl text-white">
-                    Not awarded
-                  </div>
+                  <div className="text-xl text-white">Not awarded</div>
                 </div>
               )}
             </div>
@@ -352,9 +407,7 @@ export default function Page() {
                 key={idx}
                 className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6"
               >
-                <h2 className="text-2xl font-semibold">
-                  {group.region}
-                </h2>
+                <h2 className="text-2xl font-semibold">{group.region}</h2>
 
                 <div className="mt-4 grid gap-3">
                   {group.restaurants.map((r, i) => (
@@ -362,9 +415,7 @@ export default function Page() {
                       key={i}
                       className="rounded-2xl border border-white/10 p-4"
                     >
-                      <div className="font-semibold text-white">
-                        {r.name}
-                      </div>
+                      <div className="font-semibold text-white">{r.name}</div>
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
                         <MapPin className="h-4 w-4 text-amber-300" />
