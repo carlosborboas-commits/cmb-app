@@ -184,7 +184,10 @@ if (detectedNormalized.includes('balasto')) {
         }
 
         if (!bestMatch || score > bestMatch.score) {
-          bestMatch = {
+          bestMatch = {imageUrl: (
+  detail.html.match(/https?:\/\/[^"' ]+\.(jpg|jpeg|png|webp)/i)?.[0] ||
+  null
+),
             score,
             year,
             url: link,
@@ -215,7 +218,7 @@ if (detectedNormalized.includes('balasto')) {
       medal: bestMatch.medal,
       session: `${bestMatch.session} · ${bestMatch.year}`,
       feedbackUrl: bestMatch.url,
-      productImageUrl: null,
+      productImageUrl: bestMatch.imageUrl,
     });
   } catch (err) {
     console.error(err);
