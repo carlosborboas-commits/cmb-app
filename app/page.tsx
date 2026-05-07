@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Tesseract from 'tesseract.js';
 import {
   ExternalLink,
@@ -8,10 +8,8 @@ import {
   ShieldCheck,
   Crown,
   XCircle,
-  Circle,
   Loader2,
   Camera,
-  RefreshCw,
 } from 'lucide-react';
 
 function BrandMark() {
@@ -20,332 +18,26 @@ function BrandMark() {
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-300/20 to-white/5">
         <Crown className="h-6 w-6 text-amber-300" />
       </div>
-
       <div>
-        <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">
-          Official
-        </div>
-
-        <div className="text-sm font-medium tracking-[0.14em] text-white">
-          CMB
-        </div>
+        <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">Official</div>
+        <div className="text-sm font-medium tracking-[0.14em] text-white">CMB</div>
       </div>
     </div>
   );
 }
 
-function preprocessImage(
-  video: HTMLVideoElement,
-  canvas: HTMLCanvasElement
-): string {
-  const sourceWidth = video.videoWidth;
-  const sourceHeight = video.videoHeight;
-
-  const cropWidth = sourceWidth * 0.72;
-  const cropHeight = sourceHeight * 0.42;
-
-  const cropX = (sourceWidth - cropWidth) / 2;
-  const cropY = (sourceHeight - cropHeight) / 2;
-
-  const outputWidth = 1600;
-  const outputHeight = Math.round((cropHeight / cropWidth) * outputWidth);
-
-  canvas.width = outputWidth;
-  canvas.height = outputHeight;
-
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) return '';
-
-  ctx.drawImage(
-    video,
-    cropX,
-    cropY,
-    cropWidth,
-    cropHeight,
-    0,
-    0,
-    outputWidth,
-    outputHeight
-  );
-
-  const imageData = ctx.getImageData(0, 0, outputWidth, outputHeight);
-  const data = imageData.data;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const gray =
-      data[i] * 0.299 +
-      data[i + 1] * 0.587 +
-      data[i + 2] * 0.114;
-
-    let enhanced = (gray - 128) * 2.1 + 128;
-
-    enhanced = Math.max(0, Math.min(255, enhanced));
-
-    data[i] = enhanced;
-    data[i + 1] = enhanced;
-    data[i + 2] = enhanced;
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-
-  return canvas.toDataURL('image/jpeg', 0.95);
-}
-
-function CameraReal({
-  onCapture,
-  loading,
-}: {
-  onCapture: (detectedText: string) => void;
-  loading: boolean;
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [cameraError, setCameraError] = useState('');
-  const [cameraStarted, setCameraStarted] = useState(false);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrStatus, setOcrStatus] = useState('');
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>(
-    'environment'
-  );
-
-  const stopCurrentStream = () => {
-    stream?.getTracks().forEach((track) => track.stop());
-  };
-
-  const startCamera = async (
-    mode: 'user' | 'environment' = facingMode
-  ) => {
-    setCameraError('');
-    setOcrStatus('');
-
-    try {
-      stopCurrentStream();
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: mode },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
-
-      const track = mediaStream.getVideoTracks()[0];
-
-      try {
-        await track.applyConstraints({
-          advanced: [
-            {
-              focusMode: 'continuous',
-            } as any,
-          ],
-        } as any);
-      } catch {
-        console.log('Continuous focus not available on this device.');
-      }
-
-      setStream(mediaStream);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
-      }
-
-      setCameraStarted(true);
-    } catch (err) {
-      console.error('Camera error:', err);
-
-      setCameraError(
-        'No se pudo abrir la cámara. Revisa permisos del navegador.'
-      );
-
-      setCameraStarted(false);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      stopCurrentStream();
-    };
-  }, []);
-
-  const switchCamera = async () => {
-    const nextMode =
-      facingMode === 'environment'
-        ? 'user'
-        : 'environment';
-
-    setFacingMode(nextMode);
-
-    await startCamera(nextMode);
-  };
-
-  const capture = async () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
-      setCameraError(
-        'La cámara aún no está lista. Espera un segundo e intenta de nuevo.'
-      );
-      return;
-    }
-
-    setOcrLoading(true);
-    setOcrStatus('Optimizing label image...');
-
-    try {
-      const processedImage = preprocessImage(video, canvas);
-
-      if (!processedImage) {
-        onCapture('');
-        return;
-      }
-
-      setOcrStatus('Reading label text...');
-
-      const result = await Tesseract.recognize(processedImage, 'eng+spa', {
-        logger: (m) => {
-          if (m.status) {
-            setOcrStatus(m.status);
-          }
-        },
-      });
-
-      const text = result.data.text || '';
-
-      console.log('OCR TEXT:', text);
-
-      onCapture(text);
-    } catch (err) {
-      console.error('OCR error:', err);
-
-      onCapture('');
-    } finally {
-      setOcrLoading(false);
-      setOcrStatus('');
-    }
-  };
-
-  return (
-    <div className="relative overflow-hidden rounded-[32px] border border-amber-300/10 bg-black shadow-2xl">
-      <div className="relative h-[520px]">
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-
-        <canvas ref={canvasRef} className="hidden" />
-
-        {!cameraStarted && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
-            <Camera className="h-12 w-12 text-amber-300" />
-
-            <div>
-              <div className="text-xl font-semibold text-white">
-                Camera access required
-              </div>
-
-              <p className="mt-2 text-sm leading-relaxed text-stone-400">
-                Press Start camera to activate your device camera.
-              </p>
-            </div>
-
-            <button
-              onClick={() => startCamera()}
-              className="rounded-xl bg-amber-300 px-6 py-3 text-sm font-medium text-black"
-            >
-              Start camera
-            </button>
-
-            {cameraError && (
-              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-                {cameraError}
-              </div>
-            )}
-          </div>
-        )}
-
-        {cameraStarted && (
-          <>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-44 w-72 rounded-xl border-2 border-amber-300/70 bg-black/10" />
-            </div>
-
-            <div className="absolute left-4 right-4 top-4 rounded-full bg-black/60 px-4 py-2 text-center text-[10px] uppercase tracking-[0.22em] text-stone-200 backdrop-blur">
-              Fill the gold frame with the wine label
-            </div>
-
-            <div className="absolute right-4 top-16">
-              <button
-                onClick={switchCamera}
-                className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-xs text-white backdrop-blur"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Switch
-              </button>
-            </div>
-
-            {(loading || ocrLoading) && (
-              <div className="absolute bottom-32 left-4 right-4 rounded-2xl border border-amber-300/20 bg-black/80 p-4 text-center text-xs text-amber-200 backdrop-blur">
-                {ocrStatus || 'Reading...'}
-              </div>
-            )}
-
-            <div className="absolute bottom-8 left-0 right-0 flex justify-center">
-              <button
-                onClick={capture}
-                disabled={loading || ocrLoading}
-                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-black"
-              >
-                {loading || ocrLoading ? (
-                  <Loader2 className="h-7 w-7 animate-spin text-white" />
-                ) : (
-                  <Circle className="h-7 w-7 text-white" />
-                )}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ProductImage({
-  url,
-  wine,
-}: {
-  url: string | null;
-  wine: string;
-}) {
+function ProductImage({ url, wine }: { url: string | null; wine: string }) {
   if (!url) {
     return (
       <div className="flex h-72 w-full flex-col items-center justify-center gap-3 bg-black">
         <Crown className="h-10 w-10 text-amber-300" />
-
-        <div className="text-sm uppercase tracking-[0.3em] text-stone-400">
-          CMB Record
-        </div>
-
+        <div className="text-sm uppercase tracking-[0.3em] text-stone-400">CMB Record</div>
         <div className="text-white">{wine}</div>
       </div>
     );
   }
 
-  return (
-    <img
-      src={url}
-      alt={wine}
-      className="h-72 w-full object-cover"
-    />
-  );
+  return <img src={url} alt={wine} className="h-72 w-full object-cover" />;
 }
 
 type ScanResult =
@@ -359,9 +51,7 @@ type ScanResult =
       feedbackUrl: string;
       productImageUrl: string | null;
     }
-  | {
-      awarded: false;
-    }
+  | { awarded: false }
   | null;
 
 type Region = {
@@ -379,14 +69,14 @@ export default function Page() {
   const [regions, setRegions] = useState<Region[]>([]);
   const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
   const [ocrText, setOcrText] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
+  const [ocrStatus, setOcrStatus] = useState('');
 
   useEffect(() => {
     async function loadRestaurants() {
       try {
         const res = await fetch('/api/restaurants');
-
         const data = await res.json();
-
         setRegions(data);
       } catch (e) {
         console.error(e);
@@ -396,7 +86,7 @@ export default function Page() {
     loadRestaurants();
   }, []);
 
-  const handleCapture = async (detectedText: string) => {
+  const sendToScan = async (detectedText: string) => {
     setLoading(true);
     setOcrText(detectedText);
     setScanResult(null);
@@ -404,27 +94,55 @@ export default function Page() {
     try {
       const res = await fetch('/api/scan', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image: detectedText,
-          detectedText,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ detectedText, image: detectedText }),
       });
 
       const data = await res.json();
-
       setScanResult(data);
     } catch (e) {
       console.error(e);
-
-      setScanResult({
-        awarded: false,
-      });
+      setScanResult({ awarded: false });
     }
 
     setLoading(false);
+  };
+
+  const handlePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setScanResult(null);
+    setOcrText('');
+    setOcrStatus('Preparing image...');
+    setLoading(true);
+
+    const imageUrl = URL.createObjectURL(file);
+    setPreview(imageUrl);
+
+    try {
+      setOcrStatus('Reading label text...');
+
+      const result = await Tesseract.recognize(file, 'eng+spa', {
+        logger: (m) => {
+          if (m.status) setOcrStatus(m.status);
+        },
+      });
+
+      const text = result.data.text || '';
+
+      console.log('OCR TEXT:', text);
+
+      await sendToScan(text);
+    } catch (err) {
+      console.error(err);
+      setOcrText('');
+      setScanResult({ awarded: false });
+    } finally {
+      setLoading(false);
+      setOcrStatus('');
+    }
   };
 
   return (
@@ -448,8 +166,7 @@ export default function Page() {
           </h1>
 
           <p className="mt-4 text-sm leading-relaxed text-stone-400">
-            Scan awarded wines instantly and explore the global network of CMB
-            Experience Certified restaurants.
+            Take a high-resolution photo of a wine label and check if it appears in CMB public results.
           </p>
         </div>
 
@@ -457,20 +174,16 @@ export default function Page() {
           <button
             onClick={() => setTab('scanner')}
             className={`rounded-xl px-4 py-3 ${
-              tab === 'scanner'
-                ? 'bg-amber-300 text-black'
-                : 'text-white'
+              tab === 'scanner' ? 'bg-amber-300 text-black' : 'text-white'
             }`}
           >
-            Camera Scan
+            Label Photo
           </button>
 
           <button
             onClick={() => setTab('restaurants')}
             className={`rounded-xl px-4 py-3 ${
-              tab === 'restaurants'
-                ? 'bg-amber-300 text-black'
-                : 'text-white'
+              tab === 'restaurants' ? 'bg-amber-300 text-black' : 'text-white'
             }`}
           >
             Restaurants
@@ -479,17 +192,48 @@ export default function Page() {
 
         {tab === 'scanner' && (
           <div className="mt-6 space-y-6">
-            <CameraReal
-              onCapture={handleCapture}
-              loading={loading}
-            />
+            <div className="rounded-[32px] border border-amber-300/10 bg-white/[0.04] p-6 text-center">
+              <Camera className="mx-auto h-12 w-12 text-amber-300" />
+
+              <h2 className="mt-4 text-2xl font-semibold">
+                Take label photo
+              </h2>
+
+              <p className="mt-2 text-sm leading-relaxed text-stone-400">
+                Use the phone camera to take a sharp, close photo of the label. Fill the frame with the wine name.
+              </p>
+
+              <label className="mt-6 inline-flex cursor-pointer items-center justify-center rounded-xl bg-amber-300 px-6 py-3 text-sm font-medium text-black">
+                Open camera
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhoto}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {preview && (
+              <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
+                <img src={preview} alt="Captured label" className="w-full object-cover" />
+              </div>
+            )}
 
             <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6">
               <h2 className="text-2xl font-semibold">Result</h2>
 
               <p className="mt-2 text-sm text-stone-400">
-                Binary response from CMB database
+                OCR + CMB public results matching
               </p>
+
+              {loading && (
+                <div className="mt-6 flex items-center gap-3 rounded-2xl border border-amber-300/20 bg-black p-4 text-sm text-amber-200">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  {ocrStatus || 'Processing...'}
+                </div>
+              )}
 
               {ocrText && (
                 <div className="mt-4 rounded-2xl border border-white/10 bg-black p-4">
@@ -497,25 +241,22 @@ export default function Page() {
                     OCR Text
                   </div>
 
-                  <div className="mt-2 text-xs leading-relaxed text-stone-300">
+                  <div className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-stone-300">
                     {ocrText || 'No text detected'}
                   </div>
                 </div>
               )}
 
-              {!scanResult && (
+              {!scanResult && !loading && (
                 <div className="py-14 text-center text-stone-500">
-                  Waiting scan...
+                  Waiting label photo...
                 </div>
               )}
 
               {scanResult?.awarded === true && (
                 <div className="mt-6 space-y-4">
                   <div className="overflow-hidden rounded-[28px] border border-amber-400/20">
-                    <ProductImage
-                      url={scanResult.productImageUrl}
-                      wine={scanResult.wine}
-                    />
+                    <ProductImage url={scanResult.productImageUrl} wine={scanResult.wine} />
                   </div>
 
                   <div className="flex items-center gap-2 text-amber-300">
@@ -542,10 +283,7 @@ export default function Page() {
               {scanResult?.awarded === false && (
                 <div className="py-10 text-center">
                   <XCircle className="mx-auto mb-3 h-10 w-10 text-red-500" />
-
-                  <div className="text-xl text-white">
-                    Not awarded
-                  </div>
+                  <div className="text-xl text-white">Not awarded</div>
                 </div>
               )}
             </div>
@@ -559,19 +297,12 @@ export default function Page() {
                 key={idx}
                 className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6"
               >
-                <h2 className="text-2xl font-semibold">
-                  {group.region}
-                </h2>
+                <h2 className="text-2xl font-semibold">{group.region}</h2>
 
                 <div className="mt-4 grid gap-3">
                   {group.restaurants.map((r, i) => (
-                    <div
-                      key={i}
-                      className="rounded-2xl border border-white/10 p-4"
-                    >
-                      <div className="font-semibold text-white">
-                        {r.name}
-                      </div>
+                    <div key={i} className="rounded-2xl border border-white/10 p-4">
+                      <div className="font-semibold text-white">{r.name}</div>
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
                         <MapPin className="h-4 w-4 text-amber-300" />
