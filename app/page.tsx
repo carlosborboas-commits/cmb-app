@@ -375,7 +375,13 @@ export default function Page() {
 <div className="rounded-2xl border border-amber-300/20 bg-black p-4 text-sm">
   <div className="text-amber-300">
 <img
-  src={`/medals/gold-${
+  src={`/medals/${
+    scanResult.medal.toLowerCase().includes('gran')
+      ? 'grand-gold'
+      : scanResult.medal.toLowerCase().includes('plata')
+      ? 'silver'
+      : 'gold'
+  }-${
     scanResult.session.match(/\d{4}/)?.[0] || '2024'
   }.png`}
   alt="CMB Medal"
