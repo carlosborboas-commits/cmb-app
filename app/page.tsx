@@ -372,14 +372,22 @@ export default function Page() {
                   <div className="text-2xl font-semibold text-white">
                     {scanResult.wine}
                   </div>
+<div className="rounded-2xl border border-amber-300/20 bg-black p-4 text-sm">
+  <div className="text-amber-300">
+    {scanResult.medal}
+  </div>
 
+  <div className="mt-1 text-stone-400">
+    {scanResult.session}
+  </div>
+</div>
                   <a
                     href={scanResult.feedbackUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center rounded-xl bg-amber-300 px-5 py-3 text-sm font-medium text-black"
                   >
-                    Open feedback
+                    Open CMB result
                     <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
                 </div>
