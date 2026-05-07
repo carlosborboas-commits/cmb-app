@@ -11,6 +11,7 @@ import {
   Circle,
   Loader2,
   Camera,
+  RefreshCw,
 } from 'lucide-react';
 
 function BrandMark() {
@@ -19,10 +20,12 @@ function BrandMark() {
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-300/20 to-white/5">
         <Crown className="h-6 w-6 text-amber-300" />
       </div>
+
       <div>
         <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">
           Official
         </div>
+
         <div className="text-sm font-medium tracking-[0.14em] text-white">
           CMB
         </div>
@@ -46,12 +49,26 @@ function CameraReal({
   const [cameraStarted, setCameraStarted] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
 
-  const startCamera = async () => {
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>(
+    'environment'
+  );
+
+  const stopCurrentStream = () => {
+    stream?.getTracks().forEach((track) => track.stop());
+  };
+
+  const startCamera = async (
+    mode: 'user' | 'environment' = facingMode
+  ) => {
     setCameraError('');
 
     try {
+      stopCurrentStream();
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          facingMode: mode,
+        },
         audio: false,
       });
 
@@ -65,29 +82,45 @@ function CameraReal({
       setCameraStarted(true);
     } catch (err) {
       console.error('Camera error:', err);
+
       setCameraError(
-        'No se pudo abrir la cámara. Revisa permisos del navegador o prueba en Chrome.'
+        'No se pudo abrir la cámara. Revisa permisos del navegador.'
       );
+
       setCameraStarted(false);
     }
   };
 
   useEffect(() => {
     return () => {
-      stream?.getTracks().forEach((track) => track.stop());
+      stopCurrentStream();
     };
-  }, [stream]);
+  }, []);
+
+  const switchCamera = async () => {
+    const nextMode =
+      facingMode === 'environment'
+        ? 'user'
+        : 'environment';
+
+    setFacingMode(nextMode);
+
+    await startCamera(nextMode);
+  };
 
   const capture = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
     if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
-      setCameraError('La cámara aún no está lista. Espera un segundo e intenta de nuevo.');
+      setCameraError(
+        'La cámara aún no está lista. Espera un segundo e intenta de nuevo.'
+      );
       return;
     }
 
     const ctx = canvas.getContext('2d');
+
     if (!ctx) return;
 
     canvas.width = video.videoWidth;
@@ -101,6 +134,7 @@ function CameraReal({
 
     try {
       const result = await Tesseract.recognize(imageBase64, 'eng');
+
       const text = result.data.text || '';
 
       console.log('OCR TEXT:', text);
@@ -108,6 +142,7 @@ function CameraReal({
       onCapture(text);
     } catch (err) {
       console.error('OCR error:', err);
+
       onCapture('');
     } finally {
       setOcrLoading(false);
@@ -142,7 +177,7 @@ function CameraReal({
             </div>
 
             <button
-              onClick={startCamera}
+              onClick={() => startCamera()}
               className="rounded-xl bg-amber-300 px-6 py-3 text-sm font-medium text-black"
             >
               Start camera
@@ -164,6 +199,16 @@ function CameraReal({
 
             <div className="absolute top-4 left-0 right-0 text-center text-xs uppercase tracking-[0.3em] text-stone-300">
               Align bottle label
+            </div>
+
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={switchCamera}
+                className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-xs text-white backdrop-blur"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Switch
+              </button>
             </div>
 
             <div className="absolute bottom-8 left-0 right-0 flex justify-center">
@@ -207,7 +252,13 @@ function ProductImage({
     );
   }
 
-  return <img src={url} alt={wine} className="h-72 w-full object-cover" />;
+  return (
+    <img
+      src={url}
+      alt={wine}
+      className="h-72 w-full object-cover"
+    />
+  );
 }
 
 type ScanResult =
@@ -237,16 +288,22 @@ type Region = {
 
 export default function Page() {
   const [scanResult, setScanResult] = useState<ScanResult>(null);
+
   const [loading, setLoading] = useState(false);
+
   const [regions, setRegions] = useState<Region[]>([]);
+
   const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
+
   const [ocrText, setOcrText] = useState('');
 
   useEffect(() => {
     async function loadRestaurants() {
       try {
         const res = await fetch('/api/restaurants');
+
         const data = await res.json();
+
         setRegions(data);
       } catch (e) {
         console.error(e);
@@ -258,6 +315,7 @@ export default function Page() {
 
   const handleCapture = async (detectedText: string) => {
     setLoading(true);
+
     setOcrText(detectedText);
 
     try {
@@ -273,9 +331,11 @@ export default function Page() {
       });
 
       const data = await res.json();
+
       setScanResult(data);
     } catch (e) {
       console.error(e);
+
       setScanResult({
         awarded: false,
       });
@@ -314,7 +374,9 @@ export default function Page() {
           <button
             onClick={() => setTab('scanner')}
             className={`rounded-xl px-4 py-3 ${
-              tab === 'scanner' ? 'bg-amber-300 text-black' : 'text-white'
+              tab === 'scanner'
+                ? 'bg-amber-300 text-black'
+                : 'text-white'
             }`}
           >
             Camera Scan
@@ -323,7 +385,9 @@ export default function Page() {
           <button
             onClick={() => setTab('restaurants')}
             className={`rounded-xl px-4 py-3 ${
-              tab === 'restaurants' ? 'bg-amber-300 text-black' : 'text-white'
+              tab === 'restaurants'
+                ? 'bg-amber-300 text-black'
+                : 'text-white'
             }`}
           >
             Restaurants
@@ -332,7 +396,10 @@ export default function Page() {
 
         {tab === 'scanner' && (
           <div className="mt-6 space-y-6">
-            <CameraReal onCapture={handleCapture} loading={loading} />
+            <CameraReal
+              onCapture={handleCapture}
+              loading={loading}
+            />
 
             <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6">
               <h2 className="text-2xl font-semibold">Result</h2>
@@ -393,7 +460,9 @@ export default function Page() {
                 <div className="py-10 text-center">
                   <XCircle className="mx-auto mb-3 h-10 w-10 text-red-500" />
 
-                  <div className="text-xl text-white">Not awarded</div>
+                  <div className="text-xl text-white">
+                    Not awarded
+                  </div>
                 </div>
               )}
             </div>
@@ -407,7 +476,9 @@ export default function Page() {
                 key={idx}
                 className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6"
               >
-                <h2 className="text-2xl font-semibold">{group.region}</h2>
+                <h2 className="text-2xl font-semibold">
+                  {group.region}
+                </h2>
 
                 <div className="mt-4 grid gap-3">
                   {group.restaurants.map((r, i) => (
@@ -415,7 +486,9 @@ export default function Page() {
                       key={i}
                       className="rounded-2xl border border-white/10 p-4"
                     >
-                      <div className="font-semibold text-white">{r.name}</div>
+                      <div className="font-semibold text-white">
+                        {r.name}
+                      </div>
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
                         <MapPin className="h-4 w-4 text-amber-300" />
