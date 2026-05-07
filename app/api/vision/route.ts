@@ -1,10 +1,6 @@
 import OpenAI from 'openai';
 import { NextResponse } from 'next/server';
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -12,13 +8,25 @@ export async function POST(req: Request) {
 
     if (!image) {
       return NextResponse.json(
-        { error: 'Image is required' },
+        {
+          wineName: '',
+          producer: '',
+          vintage: '',
+          countryOrRegion: '',
+          confidence: 0,
+          rawText: '',
+          debug: 'No image received by /api/vision',
+        },
         { status: 400 }
       );
     }
 
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     const response = await client.responses.create({
-      model: 'gpt-4.1',
+      model: 'gpt-4.1-mini',
       input: [
         {
           role: 'user',
@@ -26,32 +34,29 @@ export async function POST(req: Request) {
             {
               type: 'input_text',
               text: `
-You are analyzing a photograph of a wine bottle label.
+You are reading a wine bottle label.
 
-Your job is NOT to be overly cautious.
-Extract the most likely wine information visible on the label.
+Do your best to extract visible text and identify:
+- wine name
+- producer / winery / brand
+- vintage
+- region or country
 
-Return ONLY valid JSON. No markdown. No explanation.
-
-JSON structure:
+Return ONLY valid JSON:
 {
   "wineName": "",
   "producer": "",
   "vintage": "",
   "countryOrRegion": "",
   "confidence": 0,
-  "rawText": ""
+  "rawText": "",
+  "debug": ""
 }
 
-Instructions:
-- wineName: the largest or most distinctive wine name, cuvée name, vineyard name, or label name.
-- producer: winery, château, domaine, bodega, maison, estate, or brand.
-- vintage: year if visible.
-- countryOrRegion: appellation, region, country, valley, DO, DOC, AOC, AVA if visible.
-- rawText: transcribe all readable label text, even partial.
-- If uncertain, make the best possible guess from visible text.
-- confidence should reflect certainty from 0 to 1.
-- Do not return "not detected" unless the image contains no readable label text at all.
+Important:
+- Never return "not detected".
+- If unsure, put the readable words in rawText and explain briefly in debug.
+- confidence from 0 to 1.
               `,
             },
             {
@@ -64,7 +69,7 @@ Instructions:
       ],
     });
 
-    const text = response.output_text;
+    const text = response.output_text || '';
 
     let parsed;
 
@@ -78,12 +83,13 @@ Instructions:
         countryOrRegion: '',
         confidence: 0,
         rawText: text,
+        debug: 'OpenAI returned non-JSON text',
       };
     }
 
     return NextResponse.json(parsed);
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error('VISION ERROR:', error);
 
     return NextResponse.json(
       {
@@ -93,7 +99,7 @@ Instructions:
         countryOrRegion: '',
         confidence: 0,
         rawText: '',
-        error: 'Vision analysis failed',
+        debug: String(error?.message || error || 'Unknown vision error'),
       },
       { status: 500 }
     );
