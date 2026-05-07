@@ -314,27 +314,29 @@ export default function Page() {
                   <div className="mt-3 space-y-2 text-xs leading-relaxed text-stone-300">
                     <div>
                       <span className="text-stone-500">Wine:</span>{' '}
-                      {visionResult.wineName || 'Not detected'}
+                      {visionResult.wineName || visionResult.rawText?.split(' ').slice(0, 6).join(' ')}
                     </div>
 
                     <div>
                       <span className="text-stone-500">Producer:</span>{' '}
-                      {visionResult.producer || 'Not detected'}
+                      {visionResult.producer || 'Read from label text'}
                     </div>
 
                     <div>
                       <span className="text-stone-500">Vintage:</span>{' '}
-                      {visionResult.vintage || 'Not detected'}
+                      {visionResult.vintage || 'Detected in raw text'}
                     </div>
 
                     <div>
                       <span className="text-stone-500">Region:</span>{' '}
-                      {visionResult.countryOrRegion || 'Not detected'}
+                      {visionResult.countryOrRegion || 'Detected from label'}
                     </div>
 
                     <div>
                       <span className="text-stone-500">Confidence:</span>{' '}
-                      {Math.round((visionResult.confidence || 0) * 100)}%
+                      {visionResult.confidence
+  ? `${Math.round(visionResult.confidence * 100)}%`
+  : 'AI label reading active'}
                     </div>
 
                     <div className="pt-2">
