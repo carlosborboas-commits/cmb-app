@@ -1,63 +1,65 @@
 import { NextResponse } from 'next/server';
 
-function cleanText(value: string) {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
-}
-
-export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    message: 'scan route is alive',
-  });
-}
-
 export async function POST(req: Request) {
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  const image = body?.image;
+    const detectedText =
+      (body.detectedText || body.image || '')
+        .toLowerCase()
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-  if (!image) {
-    return NextResponse.json({
-      awarded: false,
-    });
-  }
+    console.log('OCR RECEIVED:', detectedText);
 
-  // 🔥 OCR temporal simulado
-  const detectedWine = 'méxico';
+    const response = await fetch(
+      'https://results.concoursmondial.com/es/resultados/2025'
+    );
 
-  const response = await fetch(
-    'https://results.concoursmondial.com/es/resultados/2025',
-    {
-      cache: 'no-store',
+    const html = await response.text();
+
+    const text = html
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+
+    const words = detectedText
+      .split(' ')
+      .filter((w: string) => w.length > 3);
+
+    let matched = false;
+
+    for (const word of words) {
+      if (text.includes(word)) {
+        matched = true;
+        console.log('MATCH FOUND:', word);
+        break;
+      }
     }
-  );
 
-  const html = await response.text();
+    if (matched) {
+      return NextResponse.json({
+        awarded: true,
+        wine: detectedText.toUpperCase(),
+        producer: 'Detected from CMB public results',
+        country: 'Detected',
+        medal: 'CMB Match',
+        session: 'Concours Mondial de Bruxelles 2025',
+        feedbackUrl:
+          'https://results.concoursmondial.com/es/resultados/2025',
+        productImageUrl: null,
+      });
+    }
 
-  const text = cleanText(html);
+    return NextResponse.json({
+      awarded: false,
+    });
+  } catch (err) {
+    console.error(err);
 
-  const found = text.includes(detectedWine);
-
-  if (!found) {
     return NextResponse.json({
       awarded: false,
     });
   }
-
-  return NextResponse.json({
-    awarded: true,
-    wine: detectedWine.toUpperCase(),
-    producer: 'Detected in official CMB public results',
-    country: 'Mexico',
-    medal: 'Public result detected',
-    session: 'Concours Mondial de Bruxelles 2025',
-    feedbackUrl:
-      'https://results.concoursmondial.com/es/resultados/2025',
-    productImageUrl: null,
-  });
 }
