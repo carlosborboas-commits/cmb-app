@@ -37,7 +37,7 @@ function ProductImage({ url, wine }: { url: string | null; wine: string }) {
         <div className="text-sm uppercase tracking-[0.3em] text-stone-400">
           CMB Record
         </div>
-        <div className="text-white">{wine}</div>
+        <div className="px-6 text-center text-white">{wine}</div>
       </div>
     );
   }
@@ -80,7 +80,6 @@ type Region = {
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-
     const reader = new FileReader();
 
     reader.onload = () => {
@@ -91,9 +90,7 @@ function fileToBase64(file: File): Promise<string> {
 
     img.onload = () => {
       const canvas = document.createElement('canvas');
-
       const maxWidth = 1400;
-
       const scale = maxWidth / img.width;
 
       canvas.width = maxWidth;
@@ -140,25 +137,24 @@ export default function Page() {
     loadRestaurants();
   }, []);
 
-  const scanCMBResults = async (detectedText: string) => {
+  const scanCMBResults = async (detectedText: string, displayName: string) => {
     const res = await fetch('/api/scan', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        detectedText,
-        image: detectedText,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ detectedText, image: detectedText }),
     });
 
     const data = await res.json();
-    setScanResult({
-  ...data,
-  wine:
-    visionResult?.wineName ||
-    detectedText.split(' ').slice(0, 6).join(' '),
-});
+
+    if (data.awarded) {
+      setScanResult({
+        ...data,
+        wine: displayName || 'CMB Awarded Wine',
+      });
+    } else {
+      setScanResult(data);
+    }
+  };
 
   const handlePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -179,17 +175,19 @@ export default function Page() {
 
       const visionResponse = await fetch('/api/vision', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image: imageBase64,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageBase64 }),
       });
 
       const visionData = await visionResponse.json();
 
       setVisionResult(visionData);
+
+      const displayName =
+        visionData.wineName ||
+        visionData.producer ||
+        visionData.rawText?.split(' ').slice(0, 6).join(' ') ||
+        'CMB Awarded Wine';
 
       const detectedText = [
         visionData.wineName,
@@ -203,7 +201,7 @@ export default function Page() {
 
       setStatus('Checking CMB public results...');
 
-      await scanCMBResults(detectedText);
+      await scanCMBResults(detectedText, displayName);
     } catch (err) {
       console.error(err);
       setScanResult({ awarded: false });
@@ -287,11 +285,7 @@ export default function Page() {
 
             {preview && (
               <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
-                <img
-                  src={preview}
-                  alt="Captured label"
-                  className="w-full object-cover"
-                />
+                <img src={preview} alt="Captured label" className="w-full object-cover" />
               </div>
             )}
 
@@ -318,7 +312,9 @@ export default function Page() {
                   <div className="mt-3 space-y-2 text-xs leading-relaxed text-stone-300">
                     <div>
                       <span className="text-stone-500">Wine:</span>{' '}
-                      {visionResult.wineName || visionResult.rawText?.split(' ').slice(0, 6).join(' ')}
+                      {visionResult.wineName ||
+                        visionResult.rawText?.split(' ').slice(0, 6).join(' ') ||
+                        'Label text extracted'}
                     </div>
 
                     <div>
@@ -339,8 +335,8 @@ export default function Page() {
                     <div>
                       <span className="text-stone-500">Confidence:</span>{' '}
                       {visionResult.confidence
-  ? `${Math.round(visionResult.confidence * 100)}%`
-  : 'AI label reading active'}
+                        ? `${Math.round(visionResult.confidence * 100)}%`
+                        : 'AI label reading active'}
                     </div>
 
                     <div className="pt-2">
@@ -410,10 +406,7 @@ export default function Page() {
 
                 <div className="mt-4 grid gap-3">
                   {group.restaurants.map((r, i) => (
-                    <div
-                      key={i}
-                      className="rounded-2xl border border-white/10 p-4"
-                    >
+                    <div key={i} className="rounded-2xl border border-white/10 p-4">
                       <div className="font-semibold text-white">{r.name}</div>
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
