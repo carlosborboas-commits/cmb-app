@@ -34,6 +34,64 @@ function BrandMark() {
   );
 }
 
+function preprocessImage(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement
+): string {
+  const sourceWidth = video.videoWidth;
+  const sourceHeight = video.videoHeight;
+
+  const cropWidth = sourceWidth * 0.72;
+  const cropHeight = sourceHeight * 0.42;
+
+  const cropX = (sourceWidth - cropWidth) / 2;
+  const cropY = (sourceHeight - cropHeight) / 2;
+
+  const outputWidth = 1600;
+  const outputHeight = Math.round((cropHeight / cropWidth) * outputWidth);
+
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
+
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) return '';
+
+  ctx.drawImage(
+    video,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    outputWidth,
+    outputHeight
+  );
+
+  const imageData = ctx.getImageData(0, 0, outputWidth, outputHeight);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const gray =
+      data[i] * 0.299 +
+      data[i + 1] * 0.587 +
+      data[i + 2] * 0.114;
+
+    let enhanced = (gray - 128) * 2.1 + 128;
+
+    enhanced = Math.max(0, Math.min(255, enhanced));
+
+    data[i] = enhanced;
+    data[i + 1] = enhanced;
+    data[i + 2] = enhanced;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  return canvas.toDataURL('image/jpeg', 0.95);
+}
+
 function CameraReal({
   onCapture,
   loading,
@@ -48,7 +106,7 @@ function CameraReal({
   const [cameraError, setCameraError] = useState('');
   const [cameraStarted, setCameraStarted] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
-
+  const [ocrStatus, setOcrStatus] = useState('');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>(
     'environment'
   );
@@ -61,16 +119,33 @@ function CameraReal({
     mode: 'user' | 'environment' = facingMode
   ) => {
     setCameraError('');
+    setOcrStatus('');
 
     try {
       stopCurrentStream();
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: mode,
+          facingMode: { ideal: mode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       });
+
+      const track = mediaStream.getVideoTracks()[0];
+
+      try {
+        await track.applyConstraints({
+          advanced: [
+            {
+              focusMode: 'continuous',
+            } as any,
+          ],
+        } as any);
+      } catch {
+        console.log('Continuous focus not available on this device.');
+      }
 
       setStream(mediaStream);
 
@@ -119,21 +194,26 @@ function CameraReal({
       return;
     }
 
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    ctx.drawImage(video, 0, 0);
-
-    const imageBase64 = canvas.toDataURL('image/jpeg');
-
     setOcrLoading(true);
+    setOcrStatus('Optimizing label image...');
 
     try {
-      const result = await Tesseract.recognize(imageBase64, 'eng');
+      const processedImage = preprocessImage(video, canvas);
+
+      if (!processedImage) {
+        onCapture('');
+        return;
+      }
+
+      setOcrStatus('Reading label text...');
+
+      const result = await Tesseract.recognize(processedImage, 'eng+spa', {
+        logger: (m) => {
+          if (m.status) {
+            setOcrStatus(m.status);
+          }
+        },
+      });
 
       const text = result.data.text || '';
 
@@ -146,6 +226,7 @@ function CameraReal({
       onCapture('');
     } finally {
       setOcrLoading(false);
+      setOcrStatus('');
     }
   };
 
@@ -194,14 +275,14 @@ function CameraReal({
         {cameraStarted && (
           <>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-56 w-40 rounded-xl border border-amber-300/40" />
+              <div className="h-44 w-72 rounded-xl border-2 border-amber-300/70 bg-black/10" />
             </div>
 
-            <div className="absolute top-4 left-0 right-0 text-center text-xs uppercase tracking-[0.3em] text-stone-300">
-              Align bottle label
+            <div className="absolute left-4 right-4 top-4 rounded-full bg-black/60 px-4 py-2 text-center text-[10px] uppercase tracking-[0.22em] text-stone-200 backdrop-blur">
+              Fill the gold frame with the wine label
             </div>
 
-            <div className="absolute top-4 right-4">
+            <div className="absolute right-4 top-16">
               <button
                 onClick={switchCamera}
                 className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-xs text-white backdrop-blur"
@@ -210,6 +291,12 @@ function CameraReal({
                 Switch
               </button>
             </div>
+
+            {(loading || ocrLoading) && (
+              <div className="absolute bottom-32 left-4 right-4 rounded-2xl border border-amber-300/20 bg-black/80 p-4 text-center text-xs text-amber-200 backdrop-blur">
+                {ocrStatus || 'Reading...'}
+              </div>
+            )}
 
             <div className="absolute bottom-8 left-0 right-0 flex justify-center">
               <button
@@ -288,13 +375,9 @@ type Region = {
 
 export default function Page() {
   const [scanResult, setScanResult] = useState<ScanResult>(null);
-
   const [loading, setLoading] = useState(false);
-
   const [regions, setRegions] = useState<Region[]>([]);
-
   const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
-
   const [ocrText, setOcrText] = useState('');
 
   useEffect(() => {
@@ -315,8 +398,8 @@ export default function Page() {
 
   const handleCapture = async (detectedText: string) => {
     setLoading(true);
-
     setOcrText(detectedText);
+    setScanResult(null);
 
     try {
       const res = await fetch('/api/scan', {
@@ -415,7 +498,7 @@ export default function Page() {
                   </div>
 
                   <div className="mt-2 text-xs leading-relaxed text-stone-300">
-                    {ocrText}
+                    {ocrText || 'No text detected'}
                   </div>
                 </div>
               )}
