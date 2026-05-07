@@ -1,5 +1,16 @@
 import { NextResponse } from 'next/server';
 
+const YEARS = [
+  '2026',
+  '2025',
+  '2024',
+  '2023',
+  '2022',
+  '2021',
+  '2020',
+  '2019',
+];
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -13,41 +24,54 @@ export async function POST(req: Request) {
 
     console.log('OCR RECEIVED:', detectedText);
 
-    const response = await fetch(
-      'https://results.concoursmondial.com/es/resultados/2025'
-    );
-
-    const html = await response.text();
-
-    const text = html
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .toLowerCase();
-
     const words = detectedText
       .split(' ')
       .filter((w: string) => w.length > 3);
 
-    let matched = false;
+    let matchedYear = '';
 
-    for (const word of words) {
-      if (text.includes(word)) {
-        matched = true;
-        console.log('MATCH FOUND:', word);
-        break;
+    for (const year of YEARS) {
+      try {
+        const response = await fetch(
+          `https://results.concoursmondial.com/es/resultados/${year}`
+        );
+
+        const html = await response.text();
+
+        const text = html
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .toLowerCase();
+
+        let score = 0;
+
+        for (const word of words) {
+          if (text.includes(word)) {
+            score++;
+          }
+        }
+
+        console.log(year, 'score:', score);
+
+        if (score >= 2) {
+          matchedYear = year;
+          break;
+        }
+      } catch (err) {
+        console.error('YEAR ERROR:', year, err);
       }
     }
 
-    if (matched) {
+    if (matchedYear) {
       return NextResponse.json({
         awarded: true,
         wine: detectedText.toUpperCase(),
-        producer: 'Detected from CMB public results',
+        producer: 'Detected from CMB historical results',
         country: 'Detected',
         medal: 'CMB Match',
-        session: 'Concours Mondial de Bruxelles 2025',
+        session: `Concours Mondial de Bruxelles ${matchedYear}`,
         feedbackUrl:
-          'https://results.concoursmondial.com/es/resultados/2025',
+          `https://results.concoursmondial.com/es/resultados/${matchedYear}`,
         productImageUrl: null,
       });
     }
