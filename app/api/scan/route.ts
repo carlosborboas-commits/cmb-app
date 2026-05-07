@@ -17,7 +17,7 @@ function display(value: string) {
   return value.replace(/\s+/g, ' ').trim().slice(0, 180);
 }
 
-function medalFromSnippet(snippet: string) {
+function detectMedal(snippet: string) {
   const s = normalize(snippet);
 
   if (s.includes('gran medalla de oro')) return 'Gran Medalla de Oro';
@@ -26,7 +26,29 @@ function medalFromSnippet(snippet: string) {
   if (s.includes('cmb merit')) return 'CMB Merit';
   if (s.includes('revelacion') || s.includes('revelation')) return 'Revelación CMB';
 
-  return 'Premio CMB detectado';
+  return 'Premio CMB';
+}
+
+function detectSession(snippet: string) {
+  const s = normalize(snippet);
+
+  if (s.includes('vinos tintos y blancos')) {
+    return 'Sesión Vinos Tintos y Blancos';
+  }
+
+  if (s.includes('vinos dulces')) {
+    return 'Sesión Vinos Dulces y Fortificados';
+  }
+
+  if (s.includes('vinos espumosos')) {
+    return 'Sesión Vinos Espumosos';
+  }
+
+  if (s.includes('vinos rosados')) {
+    return 'Sesión Vinos Rosados';
+  }
+
+  return 'Concours Mondial de Bruxelles';
 }
 
 export async function POST(req: Request) {
@@ -36,81 +58,76 @@ export async function POST(req: Request) {
     const detectedTextRaw = body.detectedText || body.image || '';
     const detectedText = normalize(detectedTextRaw);
 
-    const words = detectedText
+    const primaryWineName = detectedText
       .split(' ')
-      .filter((word: string) => word.length > 3)
-      .slice(0, 20);
+      .filter((w: string) => w.length > 3)
+      .slice(0, 4)
+      .join(' ');
 
     let bestMatch: any = null;
 
     for (const year of YEARS) {
       const url = `https://results.concoursmondial.com/es/resultados/${year}`;
 
-      const response = await fetch(url, { cache: 'no-store' });
+      const response = await fetch(url, {
+        cache: 'no-store',
+      });
+
       const html = await response.text();
-      const text = normalize(html);
 
-      let score = 0;
+      const normalizedHtml = normalize(html);
 
-      for (const word of words) {
-        if (text.includes(word)) score++;
-      }
+      const index = normalizedHtml.indexOf(primaryWineName);
 
-      if (score >= 2) {
-        const firstWord = words.find((word: string) => text.includes(word)) || '';
-        const index = firstWord ? text.indexOf(firstWord) : 0;
+      if (index === -1) continue;
 
-        const snippet = text.slice(
-          Math.max(0, index - 600),
-          Math.min(text.length, index + 1200)
-        );
+      const snippet = normalizedHtml.slice(
+        Math.max(0, index - 1200),
+        Math.min(normalizedHtml.length, index + 2500)
+      );
 
-        const medal = medalFromSnippet(snippet);
+      const medal = detectMedal(snippet);
+      const session = detectSession(snippet);
 
-        if (!bestMatch || score > bestMatch.score) {
-          bestMatch = {
-            year,
-            score,
-            medal,
-            snippet: display(snippet),
-            url,
-          };
-        }
+      const score =
+        primaryWineName
+          .split(' ')
+          .filter((word: string) => snippet.includes(word)).length || 0;
+
+      if (!bestMatch || score > bestMatch.score) {
+        bestMatch = {
+          year,
+          medal,
+          session,
+          snippet,
+          score,
+          url:
+            `https://results.concoursmondial.com/es/resultados/${year}`,
+        };
       }
     }
 
     if (!bestMatch) {
       return NextResponse.json({
         awarded: false,
-        matchedYear: '',
-        matchedMedal: '',
-        matchedSnippet: '',
       });
     }
 
     return NextResponse.json({
       awarded: true,
-      wine: display(detectedTextRaw) || 'CMB Awarded Wine',
+      wine: display(primaryWineName),
       producer: 'Detected from CMB public results',
       country: 'Detected',
       medal: bestMatch.medal,
-      session: `Concours Mondial de Bruxelles ${bestMatch.year}`,
+      session: `${bestMatch.session} · ${bestMatch.year}`,
       feedbackUrl: bestMatch.url,
       productImageUrl: null,
-
-      matchedYear: bestMatch.year,
-      matchedMedal: bestMatch.medal,
-      matchedSnippet: bestMatch.snippet,
-      matchScore: bestMatch.score,
     });
   } catch (err) {
     console.error(err);
 
     return NextResponse.json({
       awarded: false,
-      matchedYear: '',
-      matchedMedal: '',
-      matchedSnippet: '',
     });
   }
 }
