@@ -153,8 +153,12 @@ export default function Page() {
     });
 
     const data = await res.json();
-    setScanResult(data);
-  };
+    setScanResult({
+  ...data,
+  wine:
+    visionResult?.wineName ||
+    detectedText.split(' ').slice(0, 6).join(' '),
+});
 
   const handlePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
