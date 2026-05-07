@@ -213,8 +213,8 @@ if (detectedNormalized.includes('balasto')) {
     return NextResponse.json({
       awarded: true,
       wine: cleanWine,
-      producer: 'Detected from CMB public results',
-      country: 'Detected',
+      producer: 'Bodega Garzón',
+      country: 'Uruguay · Maldonado',
       medal: bestMatch.medal,
       session: `${bestMatch.session} · ${bestMatch.year}`,
       feedbackUrl: bestMatch.url,
