@@ -25,28 +25,12 @@ export async function POST(req: Request) {
           content: [
             {
               type: 'input_text',
-              text: `
-Analyze this wine label image.
-
-Return ONLY valid JSON with this structure:
-{
-  "wineName": "",
-  "producer": "",
-  "vintage": "",
-  "countryOrRegion": "",
-  "confidence": 0,
-  "rawText": ""
-}
-
-Rules:
-- If you cannot identify a field, leave it as an empty string.
-- confidence must be a number from 0 to 1.
-- rawText should include the most relevant readable words from the label.
-              `,
+              text: `Analyze this wine label image. Return ONLY valid JSON with: wineName, producer, vintage, countryOrRegion, confidence, rawText.`,
             },
             {
               type: 'input_image',
               image_url: image,
+              detail: 'high',
             },
           ],
         },
