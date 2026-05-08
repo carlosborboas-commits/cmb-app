@@ -329,7 +329,7 @@ export default function Page() {
 
                     <div>
                       <span className="text-stone-500">Region:</span>{' '}
-                      {visionResult.countryOrRegion || 'Detected from label'}
+                       {scanResult?.awarded ? scanResult.country : visionResult.countryOrRegion || 'Reading label'}
                     </div>
 
                     <div>
@@ -339,12 +339,7 @@ export default function Page() {
                         : 'AI label reading active'}
                     </div>
 
-                    <div className="pt-2">
-                      <span className="text-stone-500">Raw text:</span>
-                      <div className="mt-1 whitespace-pre-wrap">
-                        {visionResult.rawText || 'No text detected'}
-                      </div>
-                    </div>
+                  
                   </div>
                 </div>
               )}
