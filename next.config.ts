@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  allowedDevOrigins: ["192.168.68.102"],
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'docs.concoursmondial.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'results.concoursmondial.com',
+      },
+    ],
+  },
 };
 
 export default nextConfig;
