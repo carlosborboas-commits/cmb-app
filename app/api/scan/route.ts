@@ -2,36 +2,48 @@ import { NextResponse } from 'next/server';
 
 const YEARS = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019'];
 
+function stripAccents(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function normalize(value: string) {
-  return value
+  return stripAccents(value)
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
     .replace(/&amp;/g, '&')
+    .replace(/[^a-z0-9ñü\s\-']/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function display(value: string) {
-  return value.replace(/\s+/g, ' ').trim().slice(0, 120);
+function cleanTextFromHtml(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function titleCase(value: string) {
+  return value
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((w) => (w.length > 2 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(' ');
 }
 
 function detectMedal(text: string) {
   const s = normalize(text);
 
-  if (
-    s.includes('international red wine revelation') ||
-    s.includes('revelacion internacional vino tinto') ||
-    s.includes('revelacion vino tinto')
-  ) {
+  if (s.includes('international red wine revelation')) {
     return 'Gran Medalla de Oro · International Red Wine Revelation';
   }
 
   if (
     s.includes('gran medalla de oro') ||
     s.includes('grand gold medal') ||
-    s.includes('grande medaille d or') ||
-    s.includes('grande medaille d’or')
+    s.includes('grande medaille d or')
   ) {
     return 'Gran Medalla de Oro';
   }
@@ -39,17 +51,17 @@ function detectMedal(text: string) {
   if (
     s.includes('medalla de oro') ||
     s.includes('gold medal') ||
-    s.includes('medaille d or') ||
-    s.includes('médaille d’or')
+    s.includes('medaille d or')
   ) {
     return 'Medalla de Oro';
   }
 
-  if (
-    s.includes('medalla de plata') ||
-    s.includes('silver medal')
-  ) {
+  if (s.includes('medalla de plata') || s.includes('silver medal')) {
     return 'Medalla de Plata';
+  }
+
+  if (s.includes('cmb merit')) {
+    return 'CMB Merit';
   }
 
   return 'Premio CMB';
@@ -58,11 +70,15 @@ function detectMedal(text: string) {
 function detectSession(text: string) {
   const s = normalize(text);
 
-  if (s.includes('red wine') || s.includes('vinos tintos y blancos')) {
+  if (
+    s.includes('vinos tintos y blancos') ||
+    s.includes('red and white wines') ||
+    s.includes('red wine')
+  ) {
     return 'Sesión Vinos Tintos y Blancos';
   }
 
-  if (s.includes('vinos dulces') || s.includes('sweet')) {
+  if (s.includes('vinos dulces') || s.includes('sweet') || s.includes('fortified')) {
     return 'Sesión Vinos Dulces y Fortificados';
   }
 
@@ -70,45 +86,58 @@ function detectSession(text: string) {
     return 'Sesión Vinos Espumosos';
   }
 
-  if (s.includes('vinos rosados') || s.includes('rose')) {
+  if (s.includes('vinos rosados') || s.includes('rose') || s.includes('rosé')) {
     return 'Sesión Vinos Rosados';
   }
 
   return 'Concours Mondial de Bruxelles';
 }
 
-function extractCandidateTerms(text: string) {
-  const normalized = normalize(text);
+function importantTerms(value: string) {
+  const stopwords = new Set([
+    'wine',
+    'vino',
+    'vinos',
+    'label',
+    'bottle',
+    'estate',
+    'reserve',
+    'reserva',
+    'gran',
+    'medalla',
+    'gold',
+    'oro',
+    'silver',
+    'plata',
+    'concours',
+    'mondial',
+    'bruxelles',
+    'alcohol',
+    'contains',
+    'contiene',
+    'product',
+    'producto',
+    'appellation',
+    'denomination',
+    'cabernet',
+    'sauvignon',
+    'merlot',
+    'malbec',
+    'syrah',
+    'chardonnay',
+  ]);
 
-  const words = normalized
-    .split(' ')
-    .filter((word) => word.length > 3)
-    .filter(
-      (word) =>
-        ![
-          'wine',
-          'vino',
-          'vinos',
-          'label',
-          'bottle',
-          'gran',
-          'medalla',
-          'oro',
-          'plata',
-          'concours',
-          'mondial',
-          'bruxelles',
-          'appellation',
-          'contiene',
-          'alcohol',
-          'producto',
-        ].includes(word)
-    );
-
-  return Array.from(new Set(words)).slice(0, 20);
+  return Array.from(
+    new Set(
+      normalize(value)
+        .split(' ')
+        .filter((word) => word.length > 2)
+        .filter((word) => !stopwords.has(word))
+    )
+  );
 }
 
-function findResultLinks(html: string, year: string) {
+function findResultLinks(html: string) {
   const links = Array.from(
     html.matchAll(/href=["']([^"']*\/es\/resultados\/\d{4}\/[^"']+)["']/g)
   ).map((match) => match[1]);
@@ -119,18 +148,55 @@ function findResultLinks(html: string, year: string) {
   });
 }
 
-async function getText(url: string) {
+function getSlug(url: string) {
+  return normalize(decodeURIComponent(url.split('/').pop() || ''));
+}
+
+function extractImage(html: string) {
+  const candidates = [
+    ...Array.from(html.matchAll(/src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi)).map((m) => m[1]),
+    ...Array.from(html.matchAll(/data-src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi)).map((m) => m[1]),
+    ...Array.from(html.matchAll(/https?:\/\/[^"'()\s]+\.(?:jpg|jpeg|png|webp)[^"'()\s]*/gi)).map((m) => m[0]),
+  ];
+
+  const preferred = candidates.find((url) =>
+    normalize(url).includes('linked') || normalize(url).includes('reg')
+  );
+
+  const selected = preferred || candidates[0];
+
+  if (!selected) return null;
+  if (selected.startsWith('http')) return selected;
+  return `https://results.concoursmondial.com${selected}`;
+}
+
+function extractWineNameFromSlug(url: string) {
+  const slug = decodeURIComponent(url.split('/').pop() || '');
+  const withoutId = slug.replace(/^\d+-/, '');
+  const clean = withoutId.replace(/-/g, ' ');
+  return titleCase(clean);
+}
+
+function extractCountryRegion(text: string) {
+  const s = text.replace(/\s+/g, ' ');
+
+  const countryRegion =
+    s.match(/País\s+([^·|]{2,80})/i)?.[1] ||
+    s.match(/Country\s+([^·|]{2,80})/i)?.[1] ||
+    '';
+
+  const region =
+    s.match(/Región Vinícola\s+([^·|]{2,80})/i)?.[1] ||
+    s.match(/Wine Region\s+([^·|]{2,80})/i)?.[1] ||
+    '';
+
+  if (countryRegion && region) return `${countryRegion.trim()} · ${region.trim()}`;
+  return (countryRegion || region || 'Official CMB result').trim();
+}
+
+async function fetchHtml(url: string) {
   const response = await fetch(url, { cache: 'no-store' });
-  const html = await response.text();
-
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return { html, text, normalized: normalize(text) };
+  return response.text();
 }
 
 export async function POST(req: Request) {
@@ -138,83 +204,74 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const detectedTextRaw = body.detectedText || body.image || '';
-    const detectedNormalized = normalize(detectedTextRaw);
+    const wineName = body.wineName || '';
+    const producer = body.producer || '';
+    const vintage = body.vintage || '';
 
-if (detectedNormalized.includes('balasto')) {
-  return NextResponse.json({
-    awarded: true,
-    wine: 'Balasto 2017',
-    producer: 'Bodega Garzón',
-    country: 'Uruguay',
-    medal: 'Gran Medalla de Oro · International Red Wine Revelation',
-    session: 'Sesión Vinos Tintos y Blancos · 2024',
-    feedbackUrl:
-      'https://results.concoursmondial.com/es/resultados/2024/219365-balasto-2017',
-    productImageUrl: 'https://docs.concoursmondial.com/linked/CMB2024/reg/85333/41c5c9cf-c686-45f4-95f9-afe85d6e3631.png'
-  });
-}
-    const terms = extractCandidateTerms(detectedTextRaw);
+    const queryText = [wineName, producer, vintage, detectedTextRaw].filter(Boolean).join(' ');
+    const terms = importantTerms(queryText);
+
+    if (terms.length === 0) {
+      return NextResponse.json({ awarded: false });
+    }
 
     let bestMatch: any = null;
 
     for (const year of YEARS) {
       const listingUrl = `https://results.concoursmondial.com/es/resultados/${year}`;
-      const { html, normalized } = await getText(listingUrl);
-
-      const links = findResultLinks(html, year);
+      const listingHtml = await fetchHtml(listingUrl);
+      const links = findResultLinks(listingHtml);
 
       for (const link of links) {
-        const slug = normalize(link.split('/').pop() || '');
+        const slug = getSlug(link);
 
-        let slugScore = 0;
-
-        for (const term of terms) {
-          if (slug.includes(term)) slugScore += 4;
-          if (normalized.includes(term)) slugScore += 1;
-        }
-
-        if (slugScore < 4) continue;
-
-        const detail = await getText(link);
-
-        let score = slugScore;
+        let score = 0;
 
         for (const term of terms) {
-          if (detail.normalized.includes(term)) score += 3;
+          if (slug.includes(term)) score += 8;
         }
+
+        if (vintage && slug.includes(normalize(vintage))) score += 12;
+
+        if (score < 8) continue;
+
+        const detailHtml = await fetchHtml(link);
+        const detailText = cleanTextFromHtml(detailHtml);
+        const detailNormalized = normalize(detailText);
+
+        for (const term of terms) {
+          if (detailNormalized.includes(term)) score += 3;
+        }
+
+        if (producer && detailNormalized.includes(normalize(producer))) score += 8;
+        if (vintage && detailNormalized.includes(normalize(vintage))) score += 8;
 
         if (!bestMatch || score > bestMatch.score) {
-          bestMatch = {imageUrl: (
-  detail.html.match(/https?:\/\/[^"' ]+\.(jpg|jpeg|png|webp)/i)?.[0] ||
-  null
-),
+          bestMatch = {
             score,
             year,
             url: link,
-            text: detail.text,
-            medal: detectMedal(detail.text),
-            session: detectSession(detail.text),
+            html: detailHtml,
+            text: detailText,
+            wine: extractWineNameFromSlug(link),
+            medal: detectMedal(detailText),
+            session: detectSession(detailText),
+            country: extractCountryRegion(detailText),
+            imageUrl: extractImage(detailHtml),
           };
         }
       }
     }
 
-    if (!bestMatch) {
-      return NextResponse.json({
-        awarded: false,
-      });
+    if (!bestMatch || bestMatch.score < 12) {
+      return NextResponse.json({ awarded: false });
     }
-
-    const cleanWine =
-  bestMatch.text.match(/Balasto\s*2017/i)?.[0] ||
-  bestMatch.text.match(/[A-Za-zÀ-ÿ\s]+\d{4}/)?.[0] ||
-  'CMB Awarded Wine';
 
     return NextResponse.json({
       awarded: true,
-      wine: cleanWine,
-      producer: 'Bodega Garzón',
-      country: 'Uruguay · Maldonado',
+      wine: bestMatch.wine,
+      producer: producer || 'Official CMB result',
+      country: bestMatch.country,
       medal: bestMatch.medal,
       session: `${bestMatch.session} · ${bestMatch.year}`,
       feedbackUrl: bestMatch.url,
@@ -222,9 +279,6 @@ if (detectedNormalized.includes('balasto')) {
     });
   } catch (err) {
     console.error(err);
-
-    return NextResponse.json({
-      awarded: false,
-    });
+    return NextResponse.json({ awarded: false });
   }
 }
