@@ -360,14 +360,7 @@ export default function Page() {
                 </div>
               )}
 
-              {scanResult?.awarded === true && (
-                <div className="mt-6 space-y-4">
-                  <div className="overflow-hidden rounded-[28px] border border-amber-400/20">
-                    <ProductImage
-                      url={scanResult.productImageUrl}
-                      wine={scanResult.wine}
-                    />
-                  </div>
+          
 
                   <div className="flex items-center gap-2 text-amber-300">
                     <ShieldCheck className="h-5 w-5" />
