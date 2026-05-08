@@ -137,34 +137,12 @@ export default function Page() {
     loadRestaurants();
   }, []);
 
-  const scanCMBResults = async (
-  detectedText: string,
-  displayName: string,
-  visionData: VisionResult
-) => {
-  const res = await fetch('/api/scan', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      detectedText,
-      image: detectedText,
-      wineName: visionData.wineName,
-      producer: visionData.producer,
-      vintage: visionData.vintage,
-    }),
-  });
-
-  const data = await res.json();
-
-  if (data.awarded) {
-    setScanResult({
-      ...data,
-      wine: data.wine || displayName || 'CMB Awarded Wine',
+  const scanCMBResults = async (detectedText: string, displayName: string) => {
+    const res = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ detectedText, image: detectedText }),
     });
-  } else {
-    setScanResult(data);
-  }
-};
 
     const data = await res.json();
 
@@ -223,7 +201,7 @@ export default function Page() {
 
       setStatus('Checking CMB public results...');
 
-      await scanCMBResults(detectedText, displayName, visionData);
+      await scanCMBResults(detectedText, displayName);
     } catch (err) {
       console.error(err);
       setScanResult({ awarded: false });
