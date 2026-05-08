@@ -29,22 +29,6 @@ function BrandMark() {
   );
 }
 
-function ProductImage({ url, wine }: { url: string | null; wine: string }) {
-  if (!url) {
-    return (
-      <div className="flex h-72 w-full flex-col items-center justify-center gap-3 bg-black">
-        <Crown className="h-10 w-10 text-amber-300" />
-        <div className="text-sm uppercase tracking-[0.3em] text-stone-400">
-          CMB Record
-        </div>
-        <div className="px-6 text-center text-white">{wine}</div>
-      </div>
-    );
-  }
-
-  return <img src={url} alt={wine} className="h-72 w-full object-contain" />;
-}
-
 type VisionResult = {
   wineName: string;
   producer: string;
@@ -105,9 +89,7 @@ function fileToBase64(file: File): Promise<string> {
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      const jpeg = canvas.toDataURL('image/jpeg', 0.92);
-
-      resolve(jpeg);
+      resolve(canvas.toDataURL('image/jpeg', 0.92));
     };
 
     reader.readAsDataURL(file);
@@ -138,33 +120,33 @@ export default function Page() {
   }, []);
 
   const scanCMBResults = async (
-  detectedText: string,
-  displayName: string,
-  visionData: VisionResult
-) => {
-  const res = await fetch('/api/scan', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      detectedText,
-      image: detectedText,
-      wineName: visionData.wineName,
-      producer: visionData.producer,
-      vintage: visionData.vintage,
-    }),
-  });
-
-  const data = await res.json();
-
-  if (data.awarded) {
-    setScanResult({
-      ...data,
-      wine: data.wine || displayName || 'CMB Awarded Wine',
+    detectedText: string,
+    displayName: string,
+    visionData: VisionResult
+  ) => {
+    const res = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        detectedText,
+        image: detectedText,
+        wineName: visionData.wineName,
+        producer: visionData.producer,
+        vintage: visionData.vintage,
+      }),
     });
-  } else {
-    setScanResult(data);
-  }
-};
+
+    const data = await res.json();
+
+    if (data.awarded) {
+      setScanResult({
+        ...data,
+        wine: data.wine || displayName || 'CMB Awarded Wine',
+      });
+    } else {
+      setScanResult(data);
+    }
+  };
 
   const handlePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -209,7 +191,7 @@ export default function Page() {
         .filter(Boolean)
         .join(' ');
 
-      setStatus('Checking CMB public results...');
+      setStatus('Checking CMB index...');
 
       await scanCMBResults(detectedText, displayName, visionData);
     } catch (err) {
@@ -243,7 +225,7 @@ export default function Page() {
 
           <p className="mt-4 text-sm leading-relaxed text-stone-400">
             Take a high-resolution photo of a wine label. AI vision will extract
-            the wine name and check it against CMB public results.
+            the wine name and check it against the CMB index.
           </p>
         </div>
 
@@ -295,7 +277,11 @@ export default function Page() {
 
             {preview && (
               <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
-                <img src={preview} alt="Captured label" className="w-full object-cover" />
+                <img
+                  src={preview}
+                  alt="Captured label"
+                  className="w-full object-contain"
+                />
               </div>
             )}
 
@@ -303,7 +289,7 @@ export default function Page() {
               <h2 className="text-2xl font-semibold">Result</h2>
 
               <p className="mt-2 text-sm text-stone-400">
-                AI vision + CMB public results matching
+                AI vision + CMB index matching
               </p>
 
               {loading && (
@@ -322,24 +308,24 @@ export default function Page() {
                   <div className="mt-3 space-y-2 text-xs leading-relaxed text-stone-300">
                     <div>
                       <span className="text-stone-500">Wine:</span>{' '}
-                      {visionResult.wineName ||
-                        visionResult.rawText?.split(' ').slice(0, 6).join(' ') ||
-                        'Label text extracted'}
+                      {visionResult.wineName || 'Label text extracted'}
                     </div>
 
                     <div>
                       <span className="text-stone-500">Producer:</span>{' '}
-                      {visionResult.producer || 'Read from label text'}
+                      {visionResult.producer || 'Reading label'}
                     </div>
 
                     <div>
                       <span className="text-stone-500">Vintage:</span>{' '}
-                      {visionResult.vintage || 'Detected in raw text'}
+                      {visionResult.vintage || 'Reading label'}
                     </div>
 
                     <div>
                       <span className="text-stone-500">Region:</span>{' '}
-                       {scanResult?.awarded ? scanResult.country : visionResult.countryOrRegion || 'Reading label'}
+                      {scanResult?.awarded
+                        ? scanResult.country
+                        : visionResult.countryOrRegion || 'Reading label'}
                     </div>
 
                     <div>
@@ -348,8 +334,6 @@ export default function Page() {
                         ? `${Math.round(visionResult.confidence * 100)}%`
                         : 'AI label reading active'}
                     </div>
-
-                  
                   </div>
                 </div>
               )}
@@ -360,8 +344,8 @@ export default function Page() {
                 </div>
               )}
 
-          
-
+              {scanResult?.awarded === true && (
+                <div className="mt-6 space-y-4">
                   <div className="flex items-center gap-2 text-amber-300">
                     <ShieldCheck className="h-5 w-5" />
                     Awarded by CMB
@@ -370,28 +354,31 @@ export default function Page() {
                   <div className="text-2xl font-semibold text-white">
                     {scanResult.wine}
                   </div>
-<div className="rounded-2xl border border-amber-300/20 bg-black p-4 text-sm">
-  <div className="text-amber-300">
-<img
-  src={`/medals/${
-    scanResult.medal.toLowerCase().includes('gran')
-      ? 'grand-gold'
-      : scanResult.medal.toLowerCase().includes('plata')
-      ? 'silver'
-      : 'gold'
-  }-${
-    scanResult.session.match(/\d{4}/)?.[0] || '2024'
-  }.png`}
-  alt="CMB Medal"
-  className="h-36 w-36 object-contain"
-/>
-    {scanResult.medal}
-  </div>
 
-  <div className="mt-1 text-stone-400">
-    {scanResult.session}
-  </div>
-</div>
+                  <div className="rounded-2xl border border-amber-300/20 bg-black p-4 text-sm">
+                    <div className="text-amber-300">
+                      <img
+                        src={`/medals/${
+                          scanResult.medal.toLowerCase().includes('gran')
+                            ? 'grand-gold'
+                            : scanResult.medal.toLowerCase().includes('plata')
+                            ? 'silver'
+                            : 'gold'
+                        }-${
+                          scanResult.session.match(/\d{4}/)?.[0] || '2024'
+                        }.png`}
+                        alt="CMB Medal"
+                        className="mb-3 h-36 w-36 object-contain"
+                      />
+
+                      {scanResult.medal}
+                    </div>
+
+                    <div className="mt-1 text-stone-400">
+                      {scanResult.session}
+                    </div>
+                  </div>
+
                   <a
                     href={scanResult.feedbackUrl}
                     target="_blank"
@@ -425,7 +412,10 @@ export default function Page() {
 
                 <div className="mt-4 grid gap-3">
                   {group.restaurants.map((r, i) => (
-                    <div key={i} className="rounded-2xl border border-white/10 p-4">
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-white/10 p-4"
+                    >
                       <div className="font-semibold text-white">{r.name}</div>
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
