@@ -233,7 +233,7 @@ export async function POST(req: Request) {
 
         if (vintage && slug.includes(normalize(vintage))) score += 12;
 
-        if (score < 8) continue;
+        if (score < 16) continue;
 
         const detailHtml = await fetchHtml(link);
         const detailText = cleanTextFromHtml(detailHtml);
@@ -263,7 +263,7 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!bestMatch || bestMatch.score < 12) {
+    if (!bestMatch || bestMatch.score < 30) {
       return NextResponse.json({ awarded: false });
     }
 
