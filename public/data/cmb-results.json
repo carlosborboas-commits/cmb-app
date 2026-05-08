@@ -22,5 +22,17 @@
     "session": "Sesión Vinos Tintos y Blancos",
     "resultUrl": "https://results.concoursmondial.com/es/resultados/2024/219387-kendall-jackson-vintners-reserve-cabernet-sauvignon-2019",
     "imageUrl": ""
-  }
+  },
+  {
+  "wineName": "Chateau Changyu Castel Syrah - Carbernet Sauvignon",
+  "producer": "Chateau Changyu Castel Co., Ltd.",
+  "vintage": "2021",
+  "country": "China",
+  "region": "Shandong",
+  "medal": "Medalla de Oro",
+  "year": "2025",
+  "session": "Sesión Vinos Tintos y Blancos",
+  "resultUrl": "https://results.concoursmondial.com/es/resultados/2025/233259-chateau-changyu-castel-syrah-carbernet-sauvignon-2021",
+  "imageUrl": ""
+}
 ]
