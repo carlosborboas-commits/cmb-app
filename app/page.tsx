@@ -14,14 +14,19 @@ import {
 function BrandMark() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-300/20 to-white/5">
-        <Crown className="h-6 w-6 text-amber-300" />
+      <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-amber-400/30 bg-black">
+        <img
+          src="/cmb-logo.png"
+          alt="Concours Mondial de Bruxelles"
+          className="h-10 w-10 object-contain"
+        />
       </div>
+
       <div>
         <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">
           Official
         </div>
-        <div className="text-sm font-medium tracking-[0.14em] text-white">
+        <div className="text-base font-semibold tracking-[0.16em] text-white">
           CMB
         </div>
       </div>
@@ -343,64 +348,87 @@ export default function Page() {
               )}
 
               {scanResult?.awarded === true && (
-                <div className="mt-6 space-y-4">
-                  <div className="flex items-center gap-3 text-amber-300">
-                    <ShieldCheck className="h-7 w-7" />
+  <div className="mt-6 overflow-hidden rounded-[32px] border border-amber-300/20 bg-gradient-to-b from-stone-950 via-black to-black p-6 shadow-2xl">
+    <div className="flex items-center justify-center gap-3 text-amber-300">
+      <ShieldCheck className="h-6 w-6" />
+      <div className="whitespace-nowrap text-xl font-bold uppercase tracking-[0.08em]">
+        Awarded by CMB
+      </div>
+    </div>
 
-                    <div className="text-xl font-bold uppercase tracking-[0.08em] whitespace-nowrap">
-                      Awarded by CMB
-                    </div>
-                  </div>
+    <div className="mt-6 flex justify-center">
+      <img
+        src={`/medals/${
+          scanResult.medal.toLowerCase().includes('grand')
+            ? 'grand-gold'
+            : scanResult.medal.toLowerCase().includes('silver')
+            ? 'silver'
+            : 'gold'
+        }-${scanResult.session.match(/\d{4}/)?.[0] || '2024'}.png`}
+        alt="CMB Medal"
+        className="h-44 w-44 object-contain drop-shadow-2xl"
+      />
+    </div>
 
-                  <div className="text-lg font-medium leading-snug text-white">
-                    {scanResult.wine}
-                  </div>
+    <div className="mt-6 text-center">
+      <div className="text-base font-medium leading-snug text-white">
+        {scanResult.wine}
+      </div>
 
-                  <div className="rounded-2xl border border-amber-300/20 bg-black p-4 text-sm">
-                    <div className="text-amber-300">
-                      <img
-                        src={`/medals/${
-                          scanResult.medal.toLowerCase().includes('grand')
-                            ? 'grand-gold'
-                            : scanResult.medal.toLowerCase().includes('silver')
-                            ? 'silver'
-                            : 'gold'
-                        }-${
-                          scanResult.session.match(/\d{4}/)?.[0] || '2024'
-                        }.png`}
-                        alt="CMB Medal"
-                        className="mb-3 h-36 w-36 object-contain"
-                      />
+      <div className="mt-2 text-xs uppercase tracking-[0.22em] text-stone-500">
+        Official CMB Result
+      </div>
+    </div>
 
-                      {scanResult.medal}
-                    </div>
+    <div className="mt-6 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm">
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+          Medal
+        </div>
+        <div className="mt-1 text-amber-300">
+          {scanResult.medal}
+        </div>
+      </div>
 
-                    <div className="mt-1 text-stone-400">
-                      {scanResult.session}
-                    </div>
-                  </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+          Competition
+        </div>
+        <div className="mt-1 text-stone-200">
+          {scanResult.session}
+        </div>
+      </div>
 
-                  <a
-                    href={scanResult.feedbackUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center rounded-xl bg-amber-300 px-5 py-3 text-sm font-medium text-black"
-                  >
-                    Open CMB result
-                    <ExternalLink className="ml-2 h-4 w-4" />
-                  </a>
-                </div>
-              )}
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+          Region
+        </div>
+        <div className="mt-1 text-stone-200">
+          {scanResult.country}
+        </div>
+      </div>
 
-              {scanResult?.awarded === false && (
-                <div className="py-10 text-center">
-                  <XCircle className="mx-auto mb-3 h-10 w-10 text-red-500" />
-                  <div className="text-xl text-white">Not awarded</div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+          Producer
+        </div>
+        <div className="mt-1 text-stone-200">
+          {scanResult.producer}
+        </div>
+      </div>
+    </div>
+
+    <a
+      href={scanResult.feedbackUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/10"
+    >
+      Open CMB result
+      <ExternalLink className="ml-2 h-4 w-4" />
+    </a>
+  </div>
+)}
 
         {tab === 'restaurants' && (
           <div className="mt-6 space-y-4">
