@@ -7,15 +7,15 @@ const outputPath = path.join(process.cwd(), 'public', 'data', 'cmb-results.json'
 
 const SESSION_MAP = {
   ZAS: 'South Africa Selection by CMB',
-  Sweet: 'CMB Sweet and Fortified Wines Session',
-  Spark: 'CMB Sparkling Wines Session',
-  Sau: 'Sauvignon Selection by CMB',
-  Rose: 'CMB Rosé Wines Session',
+  SWEET: 'CMB Sweet and Fortified Wines Session',
+  SPARK: 'CMB Sparkling Wines Session',
+  SAU: 'Sauvignon Selection by CMB',
+  ROSE: 'CMB Rosé Wines Session',
   CMB: 'CMB Red and White Wines Session',
-  Mars: 'Marselan Selection by CMB',
+  MARS: 'Marselan Selection by CMB',
   LMX: 'México Selection by CMB',
   CMV: 'Vranec Selection by CMB',
-  Bra: 'Brasil Selection by CMB',
+  BRA: 'Brasil Selection by CMB',
 };
 
 const ISO_COUNTRY_MAP = {

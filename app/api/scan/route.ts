@@ -12,9 +12,13 @@ function normalize(value: string) {
     .trim();
 }
 
+function words(value: string) {
+  return normalize(value).split(' ').filter(Boolean);
+}
+
 function similarity(a: string, b: string) {
-  const aa = normalize(a).split(' ').filter(Boolean);
-  const bb = normalize(b).split(' ').filter(Boolean);
+  const aa = words(a);
+  const bb = words(b);
 
   let score = 0;
 
@@ -26,8 +30,13 @@ function similarity(a: string, b: string) {
 }
 
 function yearNumber(value: any) {
-  const year = Number(String(value || '').match(/\d{4}/)?.[0] || 0);
-  return Number.isFinite(year) ? year : 0;
+  return Number(String(value || '').match(/\d{4}/)?.[0] || 0);
+}
+
+function sameVintage(a: string, b: string) {
+  const aa = String(a || '').match(/\d{4}/)?.[0] || '';
+  const bb = String(b || '').match(/\d{4}/)?.[0] || '';
+  return aa && bb && aa === bb;
 }
 
 export async function POST(req: Request) {
@@ -39,12 +48,7 @@ export async function POST(req: Request) {
     const vintage = body.vintage || '';
     const detectedText = body.detectedText || '';
 
-    const searchText = [
-      wineName,
-      producer,
-      vintage,
-      detectedText,
-    ].join(' ');
+    const searchText = [wineName, producer, vintage, detectedText].join(' ');
 
     const filePath = path.join(
       process.cwd(),
@@ -56,50 +60,54 @@ export async function POST(req: Request) {
     const raw = fs.readFileSync(filePath, 'utf8');
     const records = JSON.parse(raw);
 
-    let bestMatch: any = null;
-    let bestScore = 0;
+    const candidates = records
+      .map((item: any) => {
+        const wineScore = similarity(
+          `${wineName} ${vintage}`,
+          `${item.wineName} ${item.vintage}`
+        );
 
-    for (const item of records) {
-      const wineScore = similarity(
-        `${wineName} ${vintage}`,
-        `${item.wineName} ${item.vintage}`
-      );
+        const producerScore = similarity(producer, item.producer);
 
-      const producerScore = similarity(
-        producer,
-        item.producer
-      );
+        const textScore = similarity(
+          searchText,
+          `${item.wineName} ${item.producer} ${item.vintage}`
+        );
 
-      const textScore = similarity(
-        searchText,
-        `${item.wineName} ${item.producer} ${item.vintage}`
-      );
+        const total = wineScore * 0.55 + producerScore * 0.25 + textScore * 0.2;
 
-      const total =
-        wineScore * 0.5 +
-        producerScore * 0.3 +
-        textScore * 0.2;
+        const vintageMatch = vintage
+          ? sameVintage(vintage, item.vintage)
+          : true;
 
-      const itemYear = yearNumber(item.year);
-      const bestYear = yearNumber(bestMatch?.year);
+        return {
+          item,
+          score: total,
+          year: yearNumber(item.year),
+          vintageMatch,
+        };
+      })
+      .filter((entry: any) => entry.score >= 0.45 && entry.vintageMatch);
 
-      const isBetterMatch = total > bestScore;
-      const isSameWineNewerAward =
-        bestMatch &&
-        total >= bestScore * 0.92 &&
-        itemYear > bestYear;
-
-      if (isBetterMatch || isSameWineNewerAward) {
-        bestScore = total;
-        bestMatch = item;
-      }
-    }
-
-    if (!bestMatch || bestScore < 0.45) {
+    if (candidates.length === 0) {
       return NextResponse.json({
         awarded: false,
       });
     }
+
+    candidates.sort((a: any, b: any) => {
+      if (b.score !== a.score) {
+        const scoreDifference = b.score - a.score;
+
+        if (Math.abs(scoreDifference) > 0.08) {
+          return scoreDifference;
+        }
+      }
+
+      return b.year - a.year;
+    });
+
+    const bestMatch = candidates[0].item;
 
     return NextResponse.json({
       awarded: true,
