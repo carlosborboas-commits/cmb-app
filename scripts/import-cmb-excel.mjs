@@ -7,11 +7,11 @@ const outputPath = path.join(process.cwd(), 'public', 'data', 'cmb-results.json'
 
 const SESSION_MAP = {
   ZAS: 'South Africa Selection by CMB',
-  Sweet: 'Sesión CMB Vinos Dulces y Fortificados',
-  Spark: 'Sesión CMB Vinos Espumosos',
+  Sweet: 'CMB Sweet and Fortified Wines Session',
+  Spark: 'CMB Sparkling Wines Session',
   Sau: 'Sauvignon Selection by CMB',
-  Rose: 'Sesión CMB Vinos Rosados',
-  CMB: 'Sesión CMB Vinos Tintos y Blancos',
+  Rose: 'CMB Rosé Wines Session',
+  CMB: 'CMB Red and White Wines Session',
   Mars: 'Marselan Selection by CMB',
   LMX: 'México Selection by CMB',
   CMV: 'Vranec Selection by CMB',
@@ -23,13 +23,43 @@ function clean(value) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
-function mapSession(concours) {
+function getSession(concours) {
   const value = clean(concours);
-  return SESSION_MAP[value] || value || 'Concours Mondial de Bruxelles';
+  const code = value.replace(/\d{4}/g, '').trim();
+  return SESSION_MAP[code] || code || 'Concours Mondial de Bruxelles';
+}
+
+function getYear(concours) {
+  return clean(concours).match(/\d{4}/)?.[0] || '';
+}
+
+function translateAward(value) {
+  const award = clean(value).toLowerCase();
+
+  if (!award) return '';
+
+  if (award.includes('grand') || award.includes('gran')) {
+    return 'Grand Gold Medal';
+  }
+
+  if (award.includes('gold') || award.includes('oro')) {
+    return 'Gold Medal';
+  }
+
+  if (award.includes('silver') || award.includes('plata')) {
+    return 'Silver Medal';
+  }
+
+  if (award.includes('merit')) {
+    return 'CMB Merit';
+  }
+
+  return clean(value);
 }
 
 const workbook = XLSX.readFile(inputPath);
 const sheetName = workbook.SheetNames[0];
+
 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
   defval: '',
 });
@@ -40,6 +70,13 @@ const records = rows
     const region = clean(row.Region);
     const appellation = clean(row.Appellation);
 
+    const location = [country, region, appellation]
+      .filter(Boolean)
+      .join(' · ');
+
+    const award = translateAward(row.Award);
+    const specialAward = clean(row.SpecialAward);
+
     return {
       wineName: clean(row.Nom),
       producer: clean(row.DefaultContact),
@@ -48,15 +85,20 @@ const records = rows
       subType: clean(row.SousType),
       color: clean(row.Couleur),
       countryIso: clean(row.PaysISO),
+
       country,
-      region: [region, appellation].filter(Boolean).join(' · '),
+      region,
       appellation,
-      medal: [clean(row.Award), clean(row.SpecialAward)].filter(Boolean).join(' · '),
-      award: clean(row.Award),
-      specialAward: clean(row.SpecialAward),
-      year: clean(row.Concours).match(/\d{4}/)?.[0] || '',
-      session: mapSession(clean(row.Concours).replace(/\d{4}/g, '').trim()),
+      location,
+
+      medal: [award, specialAward].filter(Boolean).join(' · '),
+      award,
+      specialAward,
+
+      year: getYear(row.Concours),
+      session: getSession(row.Concours),
       concours: clean(row.Concours),
+
       resultUrl: clean(row.WineSpaceLink),
       imageUrl: clean(row.PrizeListImageUrl),
     };

@@ -91,7 +91,7 @@ export async function POST(req: Request) {
       awarded: true,
       wine: `${bestMatch.wineName} ${bestMatch.vintage}`,
       producer: bestMatch.producer,
-      country: `${bestMatch.country} · ${bestMatch.region}`,
+      country: bestMatch.location || bestMatch.country,
       medal: bestMatch.medal,
       session: `${bestMatch.session} · ${bestMatch.year}`,
       feedbackUrl: bestMatch.resultUrl,
