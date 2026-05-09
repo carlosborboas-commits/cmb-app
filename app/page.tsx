@@ -12,6 +12,272 @@ import {
 } from 'lucide-react';
 
 function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import {
+  ExternalLink,
+  MapPin,
+  ShieldCheck,
+  Crown,
+  XCircle,
+  Loader2,
+  Camera,
+} from 'lucide-react';
+
+function BrandMark() {
   return (
     <div className="flex items-center gap-3">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-300/20 to-white/5">
@@ -346,10 +612,13 @@ export default function Page() {
 
               {scanResult?.awarded === true && (
                 <div className="mt-6 space-y-4">
-                  <div className="flex items-center gap-2 text-amber-300">
-                    <ShieldCheck className="h-5 w-5" />
-                    Awarded by CMB
-                  </div>
+                  <div className="flex items-center gap-3 text-amber-300">
+  <ShieldCheck className="h-7 w-7" />
+
+  <div className="text-2xl font-bold uppercase tracking-[0.18em]">
+    Awarded by CMB
+  </div>
+</div>
 
                   <div className="text-2xl font-semibold text-white">
                     {scanResult.wine}
