@@ -13,8 +13,8 @@ function normalize(value: string) {
 }
 
 function similarity(a: string, b: string) {
-  const aa = normalize(a).split(' ');
-  const bb = normalize(b).split(' ');
+  const aa = normalize(a).split(' ').filter(Boolean);
+  const bb = normalize(b).split(' ').filter(Boolean);
 
   let score = 0;
 
@@ -23,6 +23,11 @@ function similarity(a: string, b: string) {
   }
 
   return score / Math.max(aa.length, 1);
+}
+
+function yearNumber(value: any) {
+  const year = Number(String(value || '').match(/\d{4}/)?.[0] || 0);
+  return Number.isFinite(year) ? year : 0;
 }
 
 export async function POST(req: Request) {
@@ -75,7 +80,16 @@ export async function POST(req: Request) {
         producerScore * 0.3 +
         textScore * 0.2;
 
-      if (total > bestScore) {
+      const itemYear = yearNumber(item.year);
+      const bestYear = yearNumber(bestMatch?.year);
+
+      const isBetterMatch = total > bestScore;
+      const isSameWineNewerAward =
+        bestMatch &&
+        total >= bestScore * 0.92 &&
+        itemYear > bestYear;
+
+      if (isBetterMatch || isSameWineNewerAward) {
         bestScore = total;
         bestMatch = item;
       }
@@ -89,7 +103,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       awarded: true,
-      wine: `${bestMatch.wineName} ${bestMatch.vintage}`,
+      wine: `${bestMatch.wineName} ${bestMatch.vintage}`.trim(),
       producer: bestMatch.producer,
       country: bestMatch.location || bestMatch.country,
       medal: bestMatch.medal,
