@@ -12,272 +12,6 @@ import {
 } from 'lucide-react';
 
 function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
-  Crown,
-  XCircle,
-  Loader2,
-  Camera,
-} from 'lucide-react';
-
-function BrandMark() {
   return (
     <div className="flex items-center gap-3">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-300/20 to-white/5">
@@ -354,7 +88,6 @@ function fileToBase64(file: File): Promise<string> {
       }
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
       resolve(canvas.toDataURL('image/jpeg', 0.92));
     };
 
@@ -458,7 +191,6 @@ export default function Page() {
         .join(' ');
 
       setStatus('Checking CMB index...');
-
       await scanCMBResults(detectedText, displayName, visionData);
     } catch (err) {
       console.error(err);
@@ -613,24 +345,24 @@ export default function Page() {
               {scanResult?.awarded === true && (
                 <div className="mt-6 space-y-4">
                   <div className="flex items-center gap-3 text-amber-300">
-  <ShieldCheck className="h-7 w-7" />
+                    <ShieldCheck className="h-7 w-7" />
 
-  <div className="text-2xl font-bold uppercase tracking-[0.18em]">
-    Awarded by CMB
-  </div>
-</div>
+                    <div className="text-2xl font-bold uppercase tracking-[0.18em]">
+                      Awarded by CMB
+                    </div>
+                  </div>
 
                   <div className="text-lg font-medium leading-snug text-white">
-  {scanResult.wine}
-</div>
+                    {scanResult.wine}
+                  </div>
 
                   <div className="rounded-2xl border border-amber-300/20 bg-black p-4 text-sm">
                     <div className="text-amber-300">
                       <img
                         src={`/medals/${
-                          scanResult.medal.toLowerCase().includes('gran')
+                          scanResult.medal.toLowerCase().includes('grand')
                             ? 'grand-gold'
-                            : scanResult.medal.toLowerCase().includes('plata')
+                            : scanResult.medal.toLowerCase().includes('silver')
                             ? 'silver'
                             : 'gold'
                         }-${
