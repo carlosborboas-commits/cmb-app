@@ -12,8 +12,9 @@ import {
 
 function BrandMark() {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-amber-400/20 bg-black p-2 shadow-2xl"
+    <div className="flex items-center gap-4">
+      <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-amber-400/20 bg-black p-2 shadow-2xl">
+        <img
           src="/cmb-logo.png"
           alt="Concours Mondial de Bruxelles"
           className="h-16 w-16 object-contain"
@@ -24,14 +25,14 @@ function BrandMark() {
         <div className="text-[10px] uppercase tracking-[0.32em] text-stone-400">
           Official
         </div>
-        <div className="text-base font-semibold tracking-[0.16em] text-white">
+
+        <div className="text-xl font-semibold tracking-[0.18em] text-white">
           CMB
         </div>
       </div>
     </div>
   );
 }
-
 type VisionResult = {
   wineName: string;
   producer: string;
