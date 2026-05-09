@@ -81,10 +81,17 @@ export async function POST(req: Request) {
 
         const vintageMatch = sameVintage(vintage, item.vintage);
 
-        const total =
-          wineScore * 0.75 +
-          producerScore * 0.15 +
-          (vintageMatch ? 0.1 : 0);
+        const vintageBonus =
+  vintage && String(item.vintage) === String(vintage) ? 0.25 : 0;
+
+const vintagePenalty =
+  vintage && String(item.vintage) !== String(vintage) ? -0.35 : 0;
+
+const total =
+  wineScore * 0.7 +
+  producerScore * 0.1 +
+  vintageBonus +
+  vintagePenalty;
 
         return {
           item,
@@ -96,7 +103,7 @@ export async function POST(req: Request) {
         };
       })
       .filter((entry: any) => {
-        if (!entry.vintageMatch) return false;
+        if (vintage && !entry.vintageMatch) return false;
 
         // Regla crítica: no aceptar matches si el nombre del vino no coincide fuerte.
         if (entry.wineScore < 0.65) return false;
