@@ -18,9 +18,68 @@ const SESSION_MAP = {
   Bra: 'Brasil Selection by CMB',
 };
 
+const ISO_COUNTRY_MAP = {
+  US: 'United States',
+  USA: 'United States',
+  MX: 'Mexico',
+  ES: 'Spain',
+  FR: 'France',
+  IT: 'Italy',
+  DE: 'Germany',
+  CN: 'China',
+  ZA: 'South Africa',
+  BR: 'Brazil',
+  GB: 'United Kingdom',
+  UK: 'United Kingdom',
+  PT: 'Portugal',
+  AR: 'Argentina',
+  CL: 'Chile',
+  UY: 'Uruguay',
+  AU: 'Australia',
+  NZ: 'New Zealand',
+  CA: 'Canada',
+  BE: 'Belgium',
+  NL: 'Netherlands',
+  GR: 'Greece',
+  RO: 'Romania',
+  BG: 'Bulgaria',
+  MD: 'Moldova',
+  GE: 'Georgia',
+  AM: 'Armenia',
+  LB: 'Lebanon',
+  TR: 'Turkey',
+};
+
+const COUNTRY_NAME_MAP = {
+  'Etats-Unis': 'United States',
+  'États-Unis': 'United States',
+  USA: 'United States',
+  México: 'Mexico',
+  Mexique: 'Mexico',
+  Espagne: 'Spain',
+  España: 'Spain',
+  France: 'France',
+  Italie: 'Italy',
+  Italia: 'Italy',
+  Allemagne: 'Germany',
+  Deutschland: 'Germany',
+  Chine: 'China',
+  Afrique_du_Sud: 'South Africa',
+  'Afrique du Sud': 'South Africa',
+  Brésil: 'Brazil',
+  Brasil: 'Brazil',
+  Royaume_Uni: 'United Kingdom',
+  RoyaumeUni: 'United Kingdom',
+  Belgique: 'Belgium',
+};
+
 function clean(value) {
   if (value === undefined || value === null) return '';
   return String(value).replace(/\s+/g, ' ').trim();
+}
+
+function getYear(concours) {
+  return clean(concours).match(/\d{4}/)?.[0] || '';
 }
 
 function getSession(concours) {
@@ -29,8 +88,15 @@ function getSession(concours) {
   return SESSION_MAP[code] || code || 'Concours Mondial de Bruxelles';
 }
 
-function getYear(concours) {
-  return clean(concours).match(/\d{4}/)?.[0] || '';
+function translateCountry(country, iso) {
+  const code = clean(iso).toUpperCase();
+  const name = clean(country);
+
+  if (ISO_COUNTRY_MAP[code]) {
+    return ISO_COUNTRY_MAP[code];
+  }
+
+  return COUNTRY_NAME_MAP[name] || name;
 }
 
 function translateAward(value) {
@@ -66,7 +132,7 @@ const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
 
 const records = rows
   .map((row) => {
-    const country = clean(row.Pays);
+    const country = translateCountry(row.Pays, row.PaysISO);
     const region = clean(row.Region);
     const appellation = clean(row.Appellation);
 
