@@ -620,9 +620,9 @@ export default function Page() {
   </div>
 </div>
 
-                  <div className="text-2xl font-semibold text-white">
-                    {scanResult.wine}
-                  </div>
+                  <div className="text-lg font-medium leading-snug text-white">
+  {scanResult.wine}
+</div>
 
                   <div className="rounded-2xl border border-amber-300/20 bg-black p-4 text-sm">
                     <div className="text-amber-300">
