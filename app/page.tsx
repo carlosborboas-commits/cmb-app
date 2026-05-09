@@ -13,11 +13,10 @@ import {
 function BrandMark() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-amber-400/30 bg-black">
-        <img
+      <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-amber-400/20 bg-black p-2 shadow-2xl"
           src="/cmb-logo.png"
           alt="Concours Mondial de Bruxelles"
-          className="h-10 w-10 object-contain"
+          className="h-16 w-16 object-contain"
         />
       </div>
 
