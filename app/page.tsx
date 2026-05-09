@@ -347,7 +347,7 @@ export default function Page() {
                   <div className="flex items-center gap-3 text-amber-300">
                     <ShieldCheck className="h-7 w-7" />
 
-                    <div className="text-2xl font-bold uppercase tracking-[0.18em]">
+                    <div className="text-xl font-bold uppercase tracking-[0.08em] whitespace-nowrap">
                       Awarded by CMB
                     </div>
                   </div>
