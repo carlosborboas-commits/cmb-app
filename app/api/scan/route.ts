@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 function normalize(value: string) {
-  return value
+  return String(value || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -12,21 +12,26 @@ function normalize(value: string) {
     .trim();
 }
 
-function words(value: string) {
-  return normalize(value).split(' ').filter(Boolean);
+function tokens(value: string) {
+  return normalize(value)
+    .split(' ')
+    .filter(Boolean)
+    .filter((w) => w.length > 1);
 }
 
-function similarity(a: string, b: string) {
-  const aa = words(a);
-  const bb = words(b);
+function overlapScore(a: string, b: string) {
+  const aa = tokens(a);
+  const bb = tokens(b);
 
-  let score = 0;
+  if (aa.length === 0 || bb.length === 0) return 0;
+
+  let matches = 0;
 
   for (const word of aa) {
-    if (bb.includes(word)) score++;
+    if (bb.includes(word)) matches++;
   }
 
-  return score / Math.max(aa.length, 1);
+  return matches / aa.length;
 }
 
 function yearNumber(value: any) {
@@ -36,19 +41,20 @@ function yearNumber(value: any) {
 function sameVintage(a: string, b: string) {
   const aa = String(a || '').match(/\d{4}/)?.[0] || '';
   const bb = String(b || '').match(/\d{4}/)?.[0] || '';
-  return aa && bb && aa === bb;
+
+  if (!aa || !bb) return true;
+
+  return aa === bb;
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const wineName = body.wineName || '';
-    const producer = body.producer || '';
-    const vintage = body.vintage || '';
-    const detectedText = body.detectedText || '';
-
-    const searchText = [wineName, producer, vintage, detectedText].join(' ');
+    const wineName = String(body.wineName || '').trim();
+    const producer = String(body.producer || '').trim();
+    const vintage = String(body.vintage || '').trim();
+    const detectedText = String(body.detectedText || '').trim();
 
     const filePath = path.join(
       process.cwd(),
@@ -60,34 +66,43 @@ export async function POST(req: Request) {
     const raw = fs.readFileSync(filePath, 'utf8');
     const records = JSON.parse(raw);
 
+    const mainSearchName = wineName || detectedText.split('\n')[0] || '';
+
     const candidates = records
       .map((item: any) => {
-        const wineScore = similarity(
-          `${wineName} ${vintage}`,
+        const wineScore = overlapScore(
+          mainSearchName,
           `${item.wineName} ${item.vintage}`
         );
 
-        const producerScore = similarity(producer, item.producer);
+        const producerScore = producer
+          ? overlapScore(producer, item.producer)
+          : 0;
 
-        const textScore = similarity(
-          searchText,
-          `${item.wineName} ${item.producer} ${item.vintage}`
-        );
+        const vintageMatch = sameVintage(vintage, item.vintage);
 
-        const total = wineScore * 0.55 + producerScore * 0.25 + textScore * 0.2;
-
-        const vintageMatch = vintage
-          ? sameVintage(vintage, item.vintage)
-          : true;
+        const total =
+          wineScore * 0.75 +
+          producerScore * 0.15 +
+          (vintageMatch ? 0.1 : 0);
 
         return {
           item,
           score: total,
-          year: yearNumber(item.year),
+          wineScore,
+          producerScore,
           vintageMatch,
+          year: yearNumber(item.year),
         };
       })
-      .filter((entry: any) => entry.score >= 0.45 && entry.vintageMatch);
+      .filter((entry: any) => {
+        if (!entry.vintageMatch) return false;
+
+        // Regla crítica: no aceptar matches si el nombre del vino no coincide fuerte.
+        if (entry.wineScore < 0.65) return false;
+
+        return entry.score >= 0.55;
+      });
 
     if (candidates.length === 0) {
       return NextResponse.json({
@@ -96,12 +111,10 @@ export async function POST(req: Request) {
     }
 
     candidates.sort((a: any, b: any) => {
-      if (b.score !== a.score) {
-        const scoreDifference = b.score - a.score;
+      const scoreDifference = b.score - a.score;
 
-        if (Math.abs(scoreDifference) > 0.08) {
-          return scoreDifference;
-        }
+      if (Math.abs(scoreDifference) > 0.05) {
+        return scoreDifference;
       }
 
       return b.year - a.year;
