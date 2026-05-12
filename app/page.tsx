@@ -206,29 +206,29 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-950 to-black text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#2b1d0a_0%,#090909_38%,#000000_100%)] text-white">
       <div className="mx-auto min-h-screen max-w-md px-4 pb-10 pt-6">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between">
           <BrandMark />
 
           <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-amber-300">
-            Official Prototype
+            Global Recognition Platform
           </div>
         </div>
 
-        <div className="mb-6 overflow-hidden rounded-[32px] border border-amber-300/10 bg-gradient-to-br from-amber-300/10 via-black to-black p-6 shadow-2xl">
+        <div className="mb-8 overflow-hidden rounded-[40px] border border-amber-300/10 bg-[linear-gradient(145deg,rgba(255,210,120,0.08),rgba(0,0,0,0.92))] p-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl">
           <div className="text-[11px] uppercase tracking-[0.35em] text-amber-300/70">
             Concours Mondial de Bruxelles
           </div>
 
-          <h1 className="mt-3 text-3xl font-semibold leading-tight text-white">
+          <h1 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-white">
             Global Wine Recognition Platform
           </h1>
 
-          <p className="mt-4 text-sm leading-relaxed text-stone-400">
-            Take a high-resolution photo of a wine label. AI vision will extract
-            the wine name and check it against the CMB index.
-          </p>
+          <p className="mt-5 max-w-[92%] text-sm leading-relaxed text-stone-300">
+  Scan a wine label to instantly verify official awards and recognitions
+  from the Concours Mondial de Bruxelles global database.
+</p>
         </div>
 
         <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
