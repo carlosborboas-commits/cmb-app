@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+
 import fs from 'fs';
+
 import path from 'path';
 
-function normalize(value: string) {
-  return String(value || '')
+function normalize(value: string = '') {
+  return value
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -12,49 +14,123 @@ function normalize(value: string) {
     .trim();
 }
 
-function tokens(value: string) {
+function tokenize(value: string = '') {
   return normalize(value)
     .split(' ')
-    .filter(Boolean)
     .filter((w) => w.length > 1);
 }
 
-function overlapScore(a: string, b: string) {
-  const aa = tokens(a);
-  const bb = tokens(b);
+function similarity(a: string, b: string) {
+  const aa = tokenize(a);
 
-  if (aa.length === 0 || bb.length === 0) return 0;
+  const bb = tokenize(b);
+
+  if (!aa.length || !bb.length) return 0;
+
+  let score = 0;
+
+  for (const word of aa) {
+    if (bb.includes(word)) {
+      score++;
+    }
+  }
+
+  return score / aa.length;
+}
+
+function containsRareTokens(
+  detectedTokens: string[],
+  candidateTokens: string[]
+) {
+  const rare = detectedTokens.filter((t) => t.length >= 5);
+
+  if (!rare.length) return 0;
 
   let matches = 0;
 
-  for (const word of aa) {
-    if (bb.includes(word)) matches++;
+  for (const token of rare) {
+    if (candidateTokens.includes(token)) {
+      matches++;
+    }
   }
 
-  return matches / aa.length;
+  return matches / rare.length;
 }
 
-function yearNumber(value: any) {
-  return Number(String(value || '').match(/\d{4}/)?.[0] || 0);
+function vintageScore(
+  detectedVintage: string,
+  candidateVintage: string
+) {
+  if (!detectedVintage || !candidateVintage) {
+    return 0.5;
+  }
+
+  return detectedVintage === candidateVintage ? 1 : 0;
 }
 
-function sameVintage(a: string, b: string) {
-  const aa = String(a || '').match(/\d{4}/)?.[0] || '';
-  const bb = String(b || '').match(/\d{4}/)?.[0] || '';
+function producerBoost(
+  detectedProducer: string,
+  candidateProducer: string
+) {
+  const score = similarity(
+    detectedProducer,
+    candidateProducer
+  );
 
-  if (!aa || !bb) return true;
+  if (score > 0.9) return 1.3;
 
-  return aa === bb;
+  if (score > 0.7) return 1.15;
+
+  return 1;
+}
+
+function exactWineBoost(
+  detectedWine: string,
+  candidateWine: string
+) {
+  const a = normalize(detectedWine);
+
+  const b = normalize(candidateWine);
+
+  if (!a || !b) return 1;
+
+  if (a === b) return 2;
+
+  if (b.includes(a)) return 1.5;
+
+  return 1;
+}
+
+function getYear(record: any) {
+  const year = parseInt(record.year || '0');
+
+  if (isNaN(year)) return 0;
+
+  return year;
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const wineName = String(body.wineName || '').trim();
-    const producer = String(body.producer || '').trim();
-    const vintage = String(body.vintage || '').trim();
-    const detectedText = String(body.detectedText || '').trim();
+    const wineName = body.wineName || '';
+
+    const producer = body.producer || '';
+
+    const vintage = body.vintage || '';
+
+    const detectedText = body.detectedText || '';
+
+    const detectedWineTokens = tokenize(wineName);
+
+    const detectedProducerTokens = tokenize(producer);
+
+    const searchText = [
+      wineName,
+      producer,
+      vintage,
+      detectedText,
+    ].join(' ');
 
     const filePath = path.join(
       process.cwd(),
@@ -64,80 +140,175 @@ export async function POST(req: Request) {
     );
 
     const raw = fs.readFileSync(filePath, 'utf8');
+
     const records = JSON.parse(raw);
 
-    const mainSearchName = wineName || detectedText.split('\n')[0] || '';
+    /*
+      STEP 1
+      PRE FILTER
+    */
 
-    const candidates = records
-      .map((item: any) => {
-        const wineScore = overlapScore(
-          mainSearchName,
-          `${item.wineName} ${item.vintage}`
-        );
+    let candidates = records.filter((item: any) => {
+      const wineTokens = tokenize(item.wineName);
 
-        const producerScore = producer
-          ? overlapScore(producer, item.producer)
-          : 0;
+      const producerTokens = tokenize(item.producer);
 
-        const vintageMatch = sameVintage(vintage, item.vintage);
+      const wineOverlap = wineTokens.filter((t: string) =>
+        detectedWineTokens.includes(t)
+      ).length;
 
-        const vintageBonus =
-  vintage && String(item.vintage) === String(vintage) ? 0.25 : 0;
+      const producerOverlap = producerTokens.filter((t: string) =>
+        detectedProducerTokens.includes(t)
+      ).length;
 
-const vintagePenalty =
-  vintage && String(item.vintage) !== String(vintage) ? -0.35 : 0;
+      return (
+        wineOverlap >= 1 ||
+        producerOverlap >= 1 ||
+        item.vintage === vintage
+      );
+    });
 
-const total =
-  wineScore * 0.7 +
-  producerScore * 0.1 +
-  vintageBonus +
-  vintagePenalty;
+    /*
+      fallback
+    */
 
-        return {
-          item,
-          score: total,
-          wineScore,
-          producerScore,
-          vintageMatch,
-          year: yearNumber(item.year),
-        };
-      })
-      .filter((entry: any) => {
-        if (vintage && !entry.vintageMatch) return false;
+    if (candidates.length < 10) {
+      candidates = records;
+    }
 
-        // Regla crítica: no aceptar matches si el nombre del vino no coincide fuerte.
-        if (entry.wineScore < 0.65) return false;
+    let scored = [];
 
-        return entry.score >= 0.55;
+    for (const item of candidates) {
+      const wineScore = similarity(
+        `${wineName} ${vintage}`,
+        `${item.wineName} ${item.vintage}`
+      );
+
+      const producerScoreValue = similarity(
+        producer,
+        item.producer
+      );
+
+      const textScore = similarity(
+        searchText,
+        `${item.wineName} ${item.producer} ${item.vintage}`
+      );
+
+      const rareTokenScore = containsRareTokens(
+        detectedWineTokens,
+        tokenize(item.wineName)
+      );
+
+      const vintageMatch = vintageScore(
+        vintage,
+        item.vintage
+      );
+
+      let total =
+        wineScore * 0.4 +
+        producerScoreValue * 0.2 +
+        textScore * 0.15 +
+        rareTokenScore * 0.25;
+
+      /*
+        EXACT BOOSTS
+      */
+
+      total *= exactWineBoost(
+        wineName,
+        item.wineName
+      );
+
+      total *= producerBoost(
+        producer,
+        item.producer
+      );
+
+      /*
+        VINTAGE BOOST
+      */
+
+      total *= vintageMatch;
+
+      /*
+        PENALTIES
+      */
+
+      if (
+        vintage &&
+        item.vintage &&
+        vintage !== item.vintage
+      ) {
+        total *= 0.7;
+      }
+
+      /*
+        YEAR PRIORITY
+      */
+
+      total += getYear(item) * 0.0001;
+
+      scored.push({
+        item,
+        score: total,
       });
+    }
 
-    if (candidates.length === 0) {
+    scored.sort((a, b) => b.score - a.score);
+
+    const best = scored[0];
+
+    if (!best || best.score < 0.42) {
       return NextResponse.json({
         awarded: false,
       });
     }
 
-    candidates.sort((a: any, b: any) => {
-      const scoreDifference = b.score - a.score;
+    /*
+      SAME WINE RECENT AWARD PRIORITY
+    */
 
-      if (Math.abs(scoreDifference) > 0.05) {
-        return scoreDifference;
-      }
+    const normalizedBestWine = normalize(
+      best.item.wineName
+    );
 
-      return b.year - a.year;
+    const sameWine = records.filter((r: any) => {
+      return (
+        normalize(r.wineName) === normalizedBestWine &&
+        normalize(r.producer) ===
+          normalize(best.item.producer)
+      );
     });
 
-    const bestMatch = candidates[0].item;
+    sameWine.sort(
+      (a: any, b: any) => getYear(b) - getYear(a)
+    );
+
+    const finalWine = sameWine[0] || best.item;
 
     return NextResponse.json({
       awarded: true,
-      wine: `${bestMatch.wineName} ${bestMatch.vintage}`.trim(),
-      producer: bestMatch.producer,
-      country: bestMatch.location || bestMatch.country,
-      medal: bestMatch.medal,
-      session: `${bestMatch.session} · ${bestMatch.year}`,
-      feedbackUrl: bestMatch.resultUrl,
-      productImageUrl: bestMatch.imageUrl,
+
+      wine: `${finalWine.wineName} ${finalWine.vintage}`,
+
+      producer: finalWine.producer,
+
+      country:
+        finalWine.location || finalWine.country,
+
+      medal: finalWine.medal,
+
+      session: `${finalWine.session} · ${finalWine.year}`,
+
+      feedbackUrl: finalWine.resultUrl,
+
+      productImageUrl: finalWine.imageUrl,
+
+      debug: scored.slice(0, 3).map((x) => ({
+        wine: x.item.wineName,
+        producer: x.item.producer,
+        score: x.score,
+      })),
     });
   } catch (err) {
     console.error(err);
