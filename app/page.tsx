@@ -81,6 +81,7 @@ function fileToBase64(file: File): Promise<string> {
 
     img.onload = () => {
       const canvas = document.createElement('canvas');
+
       const maxWidth = 1400;
       const scale = maxWidth / img.width;
 
@@ -106,17 +107,24 @@ function fileToBase64(file: File): Promise<string> {
 export default function Page() {
   const [scanResult, setScanResult] = useState<ScanResult>(null);
   const [visionResult, setVisionResult] = useState<VisionResult | null>(null);
+
   const [loading, setLoading] = useState(false);
+
   const [regions, setRegions] = useState<Region[]>([]);
+
   const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
+
   const [preview, setPreview] = useState<string | null>(null);
+
   const [status, setStatus] = useState('');
 
   useEffect(() => {
     async function loadRestaurants() {
       try {
         const res = await fetch('/api/restaurants');
+
         const data = await res.json();
+
         setRegions(data);
       } catch (e) {
         console.error(e);
@@ -133,7 +141,11 @@ export default function Page() {
   ) => {
     const res = await fetch('/api/scan', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+
+      headers: {
+        'Content-Type': 'application/json',
+      },
+
       body: JSON.stringify({
         detectedText,
         image: detectedText,
@@ -155,15 +167,21 @@ export default function Page() {
     }
   };
 
-  const handlePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
     setLoading(true);
+
     setStatus('Preparing image...');
+
     setPreview(null);
+
     setVisionResult(null);
+
     setScanResult(null);
 
     try {
@@ -175,8 +193,14 @@ export default function Page() {
 
       const visionResponse = await fetch('/api/vision', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageBase64 }),
+
+        headers: {
+          'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+          image: imageBase64,
+        }),
       });
 
       const visionData = await visionResponse.json();
@@ -201,13 +225,20 @@ export default function Page() {
 
       setStatus('Checking CMB index...');
 
-      await scanCMBResults(detectedText, displayName, visionData);
+      await scanCMBResults(
+        detectedText,
+        displayName,
+        visionData
+      );
     } catch (err) {
       console.error(err);
 
-      setScanResult({ awarded: false });
+      setScanResult({
+        awarded: false,
+      });
     } finally {
       setLoading(false);
+
       setStatus('');
     }
   };
@@ -218,12 +249,17 @@ export default function Page() {
         <div className="mb-8 flex items-center justify-between">
           <BrandMark />
 
-          <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-amber-300">
+          <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-amber-300 backdrop-blur">
             Global Recognition Platform
           </div>
         </div>
 
-        <div className="mb-8 overflow-hidden rounded-[40px] border border-amber-300/10 bg-[linear-gradient(145deg,rgba(255,210,120,0.08),rgba(0,0,0,0.92))] p-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-8 overflow-hidden rounded-[40px] border border-amber-300/10 bg-[linear-gradient(145deg,rgba(255,210,120,0.08),rgba(0,0,0,0.92))] p-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+        >
           <div className="text-[11px] uppercase tracking-[0.35em] text-amber-300/70">
             Concours Mondial de Bruxelles
           </div>
@@ -234,16 +270,17 @@ export default function Page() {
 
           <p className="mt-5 max-w-[92%] text-sm leading-relaxed text-stone-300">
             Scan a wine label to instantly verify official awards and
-            recognitions from the Concours Mondial de Bruxelles global database.
+            recognitions from the Concours Mondial de Bruxelles
+            global database.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
+        <div className="grid grid-cols-2 rounded-3xl border border-white/10 bg-white/[0.035] p-1 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <button
             onClick={() => setTab('scanner')}
-            className={`rounded-xl px-4 py-3 transition-all ${
+            className={`rounded-2xl px-4 py-3 transition-all ${
               tab === 'scanner'
-                ? 'bg-amber-300 text-black'
+                ? 'bg-amber-300 text-black shadow-lg'
                 : 'text-white hover:bg-white/5'
             }`}
           >
@@ -252,9 +289,9 @@ export default function Page() {
 
           <button
             onClick={() => setTab('restaurants')}
-            className={`rounded-xl px-4 py-3 transition-all ${
+            className={`rounded-2xl px-4 py-3 transition-all ${
               tab === 'restaurants'
-                ? 'bg-amber-300 text-black'
+                ? 'bg-amber-300 text-black shadow-lg'
                 : 'text-white hover:bg-white/5'
             }`}
           >
@@ -264,7 +301,12 @@ export default function Page() {
 
         {tab === 'scanner' && (
           <div className="mt-6 space-y-6">
-            <div className="rounded-[36px] border border-amber-300/10 bg-white/[0.03] p-7 text-center shadow-[0_10px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+              className="rounded-[36px] border border-amber-300/10 bg-white/[0.03] p-7 text-center shadow-[0_10px_50px_rgba(0,0,0,0.45)] backdrop-blur-md"
+            >
               <Camera className="mx-auto h-12 w-12 text-amber-300" />
 
               <h2 className="mt-4 text-2xl font-semibold">
@@ -272,8 +314,8 @@ export default function Page() {
               </h2>
 
               <p className="mt-2 text-sm leading-relaxed text-stone-400">
-                Use the phone camera. Fill the frame with the wine name and keep
-                the label as sharp as possible.
+                Use the phone camera. Fill the frame with the wine
+                name and keep the label as sharp as possible.
               </p>
 
               <label className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]">
@@ -287,28 +329,36 @@ export default function Page() {
                   className="hidden"
                 />
               </label>
-            </div>
+            </motion.div>
 
             {preview && (
-              <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.45 }}
+                className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.03] shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+              >
                 <img
                   src={preview}
                   alt="Captured label"
                   className="w-full object-contain"
                 />
-              </div>
+              </motion.div>
             )}
 
-            <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6">
-              <h2 className="text-2xl font-semibold">Result</h2>
+            <div className="rounded-[36px] border border-white/10 bg-white/[0.035] p-6 shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+              <h2 className="text-2xl font-semibold">
+                Result
+              </h2>
 
               <p className="mt-2 text-sm text-stone-400">
                 AI vision + CMB index matching
               </p>
 
               {loading && (
-                <div className="mt-6 flex items-center gap-3 rounded-2xl border border-amber-300/20 bg-black p-4 text-sm text-amber-200">
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                <div className="mt-6 flex items-center gap-3 rounded-3xl border border-amber-300/15 bg-[linear-gradient(145deg,rgba(245,190,80,0.08),rgba(0,0,0,0.92))] p-5 text-sm text-amber-100 shadow-[0_12px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                  <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
+
                   {status || 'Processing...'}
                 </div>
               )}
@@ -322,31 +372,47 @@ export default function Page() {
                   <div className="border-t border-white/10 p-4">
                     <div className="space-y-2 text-xs leading-relaxed text-stone-300">
                       <div>
-                        <span className="text-stone-500">Wine:</span>{' '}
-                        {visionResult.wineName || 'Label text extracted'}
+                        <span className="text-stone-500">
+                          Wine:
+                        </span>{' '}
+                        {visionResult.wineName ||
+                          'Label text extracted'}
                       </div>
 
                       <div>
-                        <span className="text-stone-500">Producer:</span>{' '}
-                        {visionResult.producer || 'Reading label'}
+                        <span className="text-stone-500">
+                          Producer:
+                        </span>{' '}
+                        {visionResult.producer ||
+                          'Reading label'}
                       </div>
 
                       <div>
-                        <span className="text-stone-500">Vintage:</span>{' '}
-                        {visionResult.vintage || 'Reading label'}
+                        <span className="text-stone-500">
+                          Vintage:
+                        </span>{' '}
+                        {visionResult.vintage ||
+                          'Reading label'}
                       </div>
 
                       <div>
-                        <span className="text-stone-500">Region:</span>{' '}
+                        <span className="text-stone-500">
+                          Region:
+                        </span>{' '}
                         {scanResult?.awarded
                           ? scanResult.country
-                          : visionResult.countryOrRegion || 'Reading label'}
+                          : visionResult.countryOrRegion ||
+                            'Reading label'}
                       </div>
 
                       <div>
-                        <span className="text-stone-500">Confidence:</span>{' '}
+                        <span className="text-stone-500">
+                          Confidence:
+                        </span>{' '}
                         {visionResult.confidence
-                          ? `${Math.round(visionResult.confidence * 100)}%`
+                          ? `${Math.round(
+                              visionResult.confidence * 100
+                            )}%`
                           : 'AI label reading active'}
                       </div>
                     </div>
@@ -362,9 +428,20 @@ export default function Page() {
 
               {scanResult?.awarded === true && (
                 <motion.div
-                  initial={{ opacity: 0, y: 30, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.55, ease: 'easeOut' }}
+                  initial={{
+                    opacity: 0,
+                    y: 30,
+                    scale: 0.96,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                  }}
+                  transition={{
+                    duration: 0.55,
+                    ease: 'easeOut',
+                  }}
                   className="mt-6 overflow-hidden rounded-[40px] border border-amber-300/25 bg-[radial-gradient(circle_at_top,rgba(245,190,80,0.18),rgba(0,0,0,0.96)_55%)] p-7 shadow-[0_24px_90px_rgba(0,0,0,0.75)]"
                 >
                   <div className="text-center">
@@ -399,13 +476,19 @@ export default function Page() {
                     >
                       <img
                         src={`/medals/${
-                          scanResult.medal.toLowerCase().includes('grand')
+                          scanResult.medal
+                            .toLowerCase()
+                            .includes('grand')
                             ? 'grand-gold'
-                            : scanResult.medal.toLowerCase().includes('silver')
+                            : scanResult.medal
+                                .toLowerCase()
+                                .includes('silver')
                             ? 'silver'
                             : 'gold'
                         }-${
-                          scanResult.session.match(/\d{4}/)?.[0] || '2024'
+                          scanResult.session.match(
+                            /\d{4}/
+                          )?.[0] || '2024'
                         }.png`}
                         alt="CMB Medal"
                         className="h-44 w-44 object-contain drop-shadow-2xl"
@@ -494,9 +577,12 @@ export default function Page() {
         {tab === 'restaurants' && (
           <div className="mt-6 space-y-4">
             {regions.map((group, idx) => (
-              <div
+              <motion.div
                 key={idx}
-                className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6"
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45 }}
+                className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl"
               >
                 <h2 className="text-2xl font-semibold">
                   {group.region}
@@ -506,7 +592,7 @@ export default function Page() {
                   {group.restaurants.map((r, i) => (
                     <div
                       key={i}
-                      className="rounded-2xl border border-white/10 p-4"
+                      className="rounded-2xl border border-white/10 bg-black/20 p-4 transition-all hover:border-amber-300/20 hover:bg-black/35"
                     >
                       <div className="font-semibold text-white">
                         {r.name}
@@ -520,7 +606,7 @@ export default function Page() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
