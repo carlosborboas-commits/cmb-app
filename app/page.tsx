@@ -33,6 +33,7 @@ function BrandMark() {
     </div>
   );
 }
+
 type VisionResult = {
   wineName: string;
   producer: string;
@@ -226,9 +227,9 @@ export default function Page() {
           </h1>
 
           <p className="mt-5 max-w-[92%] text-sm leading-relaxed text-stone-300">
-  Scan a wine label to instantly verify official awards and recognitions
-  from the Concours Mondial de Bruxelles global database.
-</p>
+            Scan a wine label to instantly verify official awards and
+            recognitions from the Concours Mondial de Bruxelles global database.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
@@ -253,7 +254,7 @@ export default function Page() {
 
         {tab === 'scanner' && (
           <div className="mt-6 space-y-6">
-            <div className="rounded-[32px] border border-amber-300/10 bg-white/[0.04] p-6 text-center">
+            <div className="rounded-[36px] border border-amber-300/10 bg-white/[0.03] p-7 text-center shadow-[0_10px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
               <Camera className="mx-auto h-12 w-12 text-amber-300" />
 
               <h2 className="mt-4 text-2xl font-semibold">
@@ -265,7 +266,7 @@ export default function Page() {
                 the label as sharp as possible.
               </p>
 
-              <label className="mt-6 inline-flex cursor-pointer items-center justify-center rounded-xl bg-amber-300 px-6 py-3 text-sm font-medium text-black">
+              <label className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02]">
                 Open camera
                 <input
                   type="file"
@@ -347,44 +348,54 @@ export default function Page() {
               )}
 
               {scanResult?.awarded === true && (
-                <div className="mt-6 overflow-hidden rounded-[32px] border border-amber-300/20 bg-gradient-to-b from-stone-950 via-black to-black p-6 shadow-2xl">
-                  <div className="flex items-center justify-center gap-3 text-amber-300">
-                    <ShieldCheck className="h-6 w-6" />
-                    <div className="whitespace-nowrap text-xl font-bold uppercase tracking-[0.08em]">
-                      Awarded by CMB
+                <div className="mt-6 overflow-hidden rounded-[40px] border border-amber-300/25 bg-[radial-gradient(circle_at_top,rgba(245,190,80,0.18),rgba(0,0,0,0.96)_55%)] p-7 shadow-[0_24px_90px_rgba(0,0,0,0.75)]">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200">
+                      Verified Result
+                    </div>
+
+                    <div className="flex items-center justify-center gap-3 text-amber-300">
+                      <ShieldCheck className="h-6 w-6" />
+                      <div className="whitespace-nowrap text-xl font-bold uppercase tracking-[0.08em]">
+                        Awarded by CMB
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 flex justify-center">
-                    <img
-                      src={`/medals/${
-                        scanResult.medal.toLowerCase().includes('grand')
-                          ? 'grand-gold'
-                          : scanResult.medal.toLowerCase().includes('silver')
-                          ? 'silver'
-                          : 'gold'
-                      }-${scanResult.session.match(/\d{4}/)?.[0] || '2024'}.png`}
-                      alt="CMB Medal"
-                      className="h-44 w-44 object-contain drop-shadow-2xl"
-                    />
+                  <div className="mt-7 flex justify-center">
+                    <div className="rounded-full bg-amber-300/10 p-5 shadow-[0_0_60px_rgba(245,190,80,0.22)]">
+                      <img
+                        src={`/medals/${
+                          scanResult.medal.toLowerCase().includes('grand')
+                            ? 'grand-gold'
+                            : scanResult.medal.toLowerCase().includes('silver')
+                            ? 'silver'
+                            : 'gold'
+                        }-${
+                          scanResult.session.match(/\d{4}/)?.[0] || '2024'
+                        }.png`}
+                        alt="CMB Medal"
+                        className="h-44 w-44 object-contain drop-shadow-2xl"
+                      />
+                    </div>
                   </div>
 
-                  <div className="mt-6 text-center">
+                  <div className="mt-7 text-center">
                     <div className="text-base font-medium leading-snug text-white">
                       {scanResult.wine}
                     </div>
 
-                    <div className="mt-2 text-xs uppercase tracking-[0.22em] text-stone-500">
-                      Official CMB Result
+                    <div className="mt-2 text-[10px] uppercase tracking-[0.28em] text-stone-500">
+                      Official CMB Recognition
                     </div>
                   </div>
 
-                  <div className="mt-6 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm">
+                  <div className="mt-7 grid gap-3 rounded-3xl border border-white/10 bg-black/45 p-5 text-sm backdrop-blur">
                     <div>
                       <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                         Medal
                       </div>
-                      <div className="mt-1 text-amber-300">
+                      <div className="mt-1 font-medium text-amber-300">
                         {scanResult.medal}
                       </div>
                     </div>
@@ -421,7 +432,7 @@ export default function Page() {
                     href={scanResult.feedbackUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/10"
+                    className="mt-7 inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.01]"
                   >
                     Open CMB result
                     <ExternalLink className="ml-2 h-4 w-4" />
