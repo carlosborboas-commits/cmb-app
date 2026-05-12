@@ -1,30 +1,21 @@
-import OpenAI from 'openai';
 import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
+
+export const runtime = 'nodejs';
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-function extractJson(text: string) {
-  const cleaned = text
-    .replace(/```json/gi, '')
-    .replace(/```/g, '')
-    .trim();
-
-  const first = cleaned.indexOf('{');
-  const last = cleaned.lastIndexOf('}');
-
-  if (first === -1 || last === -1) {
-    return cleaned;
-  }
-
-  return cleaned.slice(first, last + 1);
+function safeString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const image = body?.image;
+
+    const image = body.image;
 
     if (!image) {
       return NextResponse.json({
@@ -33,28 +24,37 @@ export async function POST(req: Request) {
         vintage: '',
         countryOrRegion: '',
         confidence: 0,
-        rawText: 'No image received',
+        rawText: '',
       });
     }
 
-    const completion = await client.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a wine label recognition system. Return only valid JSON. Never use markdown fences.',
-        },
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini',
+      input: [
         {
           role: 'user',
           content: [
             {
-              type: 'text',
+              type: 'input_text',
               text: `
-Read this wine label image carefully.
+You are a wine-label recognition system for Concours Mondial de Bruxelles.
 
-Return ONLY valid JSON with this exact structure:
+Analyze the wine label image and extract ONLY the commercially useful wine-identification fields.
 
+Return STRICT JSON only. No markdown. No explanation.
+
+Rules:
+- Prioritize the FRONT LABEL.
+- Identify the wine name as the main commercial label name or cuvée.
+- Do not use importer text, legal warning text, barcode text, alcohol statement, bottle size, marketing slogans, address, back-label text, or appellation as the wine name.
+- If the label shows a vintage year, return it as vintage.
+- If producer is visible, return producer.
+- If country, region or appellation is visible, return countryOrRegion.
+- Do not invent missing data.
+- If unsure, leave the field empty.
+- rawText should include only relevant label text, not every legal or back-label phrase.
+
+JSON schema:
 {
   "wineName": "",
   "producer": "",
@@ -63,36 +63,28 @@ Return ONLY valid JSON with this exact structure:
   "confidence": 0,
   "rawText": ""
 }
-
-Rules:
-- rawText must include every readable word you can see.
-- Do not use markdown.
-- Do not wrap the JSON in \`\`\`.
-- If uncertain, put the readable text in rawText.
-- confidence from 0 to 1.
-              `,
+              `.trim(),
             },
             {
-              type: 'image_url',
-              image_url: {
-                url: image,
-                detail: 'high',
-              },
+              type: 'input_image',
+              image_url: image,
             },
           ],
         },
       ],
-      temperature: 0,
-      max_tokens: 700,
     });
 
-    const text = completion.choices?.[0]?.message?.content || '';
-    const jsonText = extractJson(text);
+    const text = response.output_text || '';
 
-    let parsed;
+    let parsed: any = null;
 
     try {
-      parsed = JSON.parse(jsonText);
+      const cleaned = text
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+
+      parsed = JSON.parse(cleaned);
     } catch {
       parsed = {
         wineName: '',
@@ -104,15 +96,27 @@ Rules:
       };
     }
 
-    return NextResponse.json(parsed);
-  } catch (error: any) {
+    return NextResponse.json({
+      wineName: safeString(parsed.wineName),
+      producer: safeString(parsed.producer),
+      vintage: safeString(parsed.vintage),
+      countryOrRegion: safeString(parsed.countryOrRegion),
+      confidence:
+        typeof parsed.confidence === 'number'
+          ? Math.max(0, Math.min(1, parsed.confidence))
+          : 0,
+      rawText: safeString(parsed.rawText),
+    });
+  } catch (err) {
+    console.error(err);
+
     return NextResponse.json({
       wineName: '',
       producer: '',
       vintage: '',
       countryOrRegion: '',
       confidence: 0,
-      rawText: `VISION ERROR: ${String(error?.message || error)}`,
+      rawText: '',
     });
   }
 }
