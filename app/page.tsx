@@ -258,7 +258,7 @@ export default function Page() {
               <Camera className="mx-auto h-12 w-12 text-amber-300" />
 
               <h2 className="mt-4 text-2xl font-semibold">
-                Take label photo
+                Scan wine label
               </h2>
 
               <p className="mt-2 text-sm leading-relaxed text-stone-400">
@@ -303,43 +303,45 @@ export default function Page() {
               )}
 
               {visionResult && (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-black p-4">
-                  <div className="text-[10px] uppercase tracking-[0.25em] text-amber-300">
-                    AI Vision Reading
-                  </div>
+  <details className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+    <summary className="cursor-pointer px-4 py-3 text-xs uppercase tracking-[0.24em] text-stone-400">
+      AI Vision Reading
+    </summary>
 
-                  <div className="mt-3 space-y-2 text-xs leading-relaxed text-stone-300">
-                    <div>
-                      <span className="text-stone-500">Wine:</span>{' '}
-                      {visionResult.wineName || 'Label text extracted'}
-                    </div>
+    <div className="border-t border-white/10 p-4">
+      <div className="space-y-2 text-xs leading-relaxed text-stone-300">
+        <div>
+          <span className="text-stone-500">Wine:</span>{' '}
+          {visionResult.wineName || 'Label text extracted'}
+        </div>
 
-                    <div>
-                      <span className="text-stone-500">Producer:</span>{' '}
-                      {visionResult.producer || 'Reading label'}
-                    </div>
+        <div>
+          <span className="text-stone-500">Producer:</span>{' '}
+          {visionResult.producer || 'Reading label'}
+        </div>
 
-                    <div>
-                      <span className="text-stone-500">Vintage:</span>{' '}
-                      {visionResult.vintage || 'Reading label'}
-                    </div>
+        <div>
+          <span className="text-stone-500">Vintage:</span>{' '}
+          {visionResult.vintage || 'Reading label'}
+        </div>
 
-                    <div>
-                      <span className="text-stone-500">Region:</span>{' '}
-                      {scanResult?.awarded
-                        ? scanResult.country
-                        : visionResult.countryOrRegion || 'Reading label'}
-                    </div>
+        <div>
+          <span className="text-stone-500">Region:</span>{' '}
+          {scanResult?.awarded
+            ? scanResult.country
+            : visionResult.countryOrRegion || 'Reading label'}
+        </div>
 
-                    <div>
-                      <span className="text-stone-500">Confidence:</span>{' '}
-                      {visionResult.confidence
-                        ? `${Math.round(visionResult.confidence * 100)}%`
-                        : 'AI label reading active'}
-                    </div>
-                  </div>
-                </div>
-              )}
+        <div>
+          <span className="text-stone-500">Confidence:</span>{' '}
+          {visionResult.confidence
+            ? `${Math.round(visionResult.confidence * 100)}%`
+            : 'AI label reading active'}
+        </div>
+      </div>
+    </div>
+  </details>
+)}
 
               {!scanResult && !loading && (
                 <div className="py-14 text-center text-stone-500">
