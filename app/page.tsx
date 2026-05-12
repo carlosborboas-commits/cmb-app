@@ -106,13 +106,16 @@ function fileToBase64(file: File): Promise<string> {
 
 export default function Page() {
   const [scanResult, setScanResult] = useState<ScanResult>(null);
-  const [visionResult, setVisionResult] = useState<VisionResult | null>(null);
+
+  const [visionResult, setVisionResult] =
+    useState<VisionResult | null>(null);
 
   const [loading, setLoading] = useState(false);
 
   const [regions, setRegions] = useState<Region[]>([]);
 
-  const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
+  const [tab, setTab] =
+    useState<'scanner' | 'restaurants'>('scanner');
 
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -143,7 +146,7 @@ export default function Page() {
       method: 'POST',
 
       headers: {
-        'Content-Type': 'application/json',
+        ''Content-Type': 'application/json',
       },
 
       body: JSON.stringify({
@@ -244,8 +247,14 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#2b1d0a_0%,#090909_38%,#000000_100%)] text-white">
-      <div className="mx-auto min-h-screen max-w-md px-4 pb-10 pt-6">
+    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#3a240d_0%,#090909_38%,#000000_100%)] text-white">
+      <div className="pointer-events-none absolute inset-0 opacity-30">
+        <div className="absolute left-[-10%] top-[10%] h-[320px] w-[320px] rounded-full bg-amber-400/10 blur-3xl" />
+
+        <div className="absolute right-[-5%] top-[35%] h-[260px] w-[260px] rounded-full bg-yellow-200/5 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto min-h-screen max-w-md px-4 pb-14 pt-6">
         <div className="mb-8 flex items-center justify-between">
           <BrandMark />
 
@@ -255,16 +264,16 @@ export default function Page() {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="mb-8 overflow-hidden rounded-[40px] border border-amber-300/10 bg-[linear-gradient(145deg,rgba(255,210,120,0.08),rgba(0,0,0,0.92))] p-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+          className="mb-8 overflow-hidden rounded-[42px] border border-amber-300/10 bg-[linear-gradient(145deg,rgba(255,210,120,0.08),rgba(0,0,0,0.92))] p-7 shadow-[0_24px_90px_rgba(0,0,0,0.65)] backdrop-blur-xl"
         >
           <div className="text-[11px] uppercase tracking-[0.35em] text-amber-300/70">
             Concours Mondial de Bruxelles
           </div>
 
-          <h1 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-white">
+          <h1 className="mt-4 text-4xl font-semibold leading-[1.02] tracking-[-0.04em] text-white">
             Global Wine Recognition Platform
           </h1>
 
@@ -305,7 +314,7 @@ export default function Page() {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45 }}
-              className="rounded-[36px] border border-amber-300/10 bg-white/[0.03] p-7 text-center shadow-[0_10px_50px_rgba(0,0,0,0.45)] backdrop-blur-md"
+              className="rounded-[38px] border border-amber-300/10 bg-white/[0.03] p-7 text-center shadow-[0_10px_50px_rgba(0,0,0,0.45)] backdrop-blur-md"
             >
               <Camera className="mx-auto h-12 w-12 text-amber-300" />
 
@@ -336,7 +345,7 @@ export default function Page() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.45 }}
-                className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.03] shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+                className="overflow-hidden rounded-[38px] border border-white/10 bg-white/[0.03] shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl"
               >
                 <img
                   src={preview}
@@ -346,16 +355,14 @@ export default function Page() {
               </motion.div>
             )}
 
-            <div className="rounded-[36px] border border-white/10 bg-white/[0.035] p-6 shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            <div className="rounded-[38px] border border-white/10 bg-white/[0.035] p-6 shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-xl">
               <h2 className="text-2xl font-semibold">
                 Result
               </h2>
 
               <p className="mt-2 text-sm text-stone-400">
                 AI vision + CMB index matching
-              </p>
-
-              {loading && (
+              </p>              {loading && (
                 <div className="mt-6 flex items-center gap-3 rounded-3xl border border-amber-300/15 bg-[linear-gradient(145deg,rgba(245,190,80,0.08),rgba(0,0,0,0.92))] p-5 text-sm text-amber-100 shadow-[0_12px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                   <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
 
@@ -404,17 +411,6 @@ export default function Page() {
                           : visionResult.countryOrRegion ||
                             'Reading label'}
                       </div>
-
-                      <div>
-                        <span className="text-stone-500">
-                          Confidence:
-                        </span>{' '}
-                        {visionResult.confidence
-                          ? `${Math.round(
-                              visionResult.confidence * 100
-                            )}%`
-                          : 'AI label reading active'}
-                      </div>
                     </div>
                   </div>
                 </details>
@@ -442,122 +438,136 @@ export default function Page() {
                     duration: 0.55,
                     ease: 'easeOut',
                   }}
-                  className="mt-6 overflow-hidden rounded-[40px] border border-amber-300/25 bg-[radial-gradient(circle_at_top,rgba(245,190,80,0.18),rgba(0,0,0,0.96)_55%)] p-7 shadow-[0_24px_90px_rgba(0,0,0,0.75)]"
+                  className="mt-6 overflow-hidden rounded-[42px] border border-amber-300/20 bg-[linear-gradient(160deg,rgba(245,190,80,0.12),rgba(0,0,0,0.96))] p-0 shadow-[0_28px_100px_rgba(0,0,0,0.72)]"
                 >
-                  <div className="text-center">
-                    <div className="mx-auto mb-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200">
-                      Verified Result
+                  <div className="relative overflow-hidden border-b border-white/10 px-7 pb-10 pt-7">
+                    <div className="absolute right-[-15%] top-[-10%] h-[220px] w-[220px] rounded-full bg-amber-300/10 blur-3xl" />
+
+                    <div className="relative z-10 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200">
+                          Official Verification
+                        </div>
+
+                        <div className="mt-3 flex items-center gap-3 text-amber-300">
+                          <ShieldCheck className="h-6 w-6" />
+
+                          <div className="text-xl font-bold uppercase tracking-[0.06em]">
+                            Awarded by CMB
+                          </div>
+                        </div>
+                      </div>
+
+                      <motion.div
+                        animate={{
+                          rotate: [0, 2, -2, 0],
+                        }}
+                        transition={{
+                          duration: 5,
+                          repeat: Infinity,
+                        }}
+                        className="relative"
+                      >
+                        <img
+                          src={`/medals/${
+                            scanResult.medal
+                              .toLowerCase()
+                              .includes('grand')
+                              ? 'grand-gold'
+                              : scanResult.medal
+                                  .toLowerCase()
+                                  .includes('silver')
+                              ? 'silver'
+                              : 'gold'
+                          }-${
+                            scanResult.session.match(
+                              /\d{4}/
+                            )?.[0] || '2024'
+                          }.png`}
+                          alt="CMB Medal"
+                          className="h-28 w-28 object-contain drop-shadow-[0_0_40px_rgba(245,190,80,0.35)]"
+                        />
+                      </motion.div>
                     </div>
 
-                    <div className="flex items-center justify-center gap-3 text-amber-300">
-                      <ShieldCheck className="h-6 w-6" />
+                    <div className="relative z-10 mt-8 flex items-center gap-6">
+                      <div className="flex h-[210px] w-[120px] items-center justify-center rounded-[28px] border border-white/10 bg-black/30 p-2 backdrop-blur-xl">
+                        <img
+                          src={
+                            scanResult.productImageUrl ||
+                            '/placeholders/wine-placeholder.png'
+                          }
+                          alt={scanResult.wine}
+                          className="h-full object-contain"
+                        />
+                      </div>
 
-                      <div className="whitespace-nowrap text-xl font-bold uppercase tracking-[0.08em]">
-                        Awarded by CMB
+                      <div className="flex-1">
+                        <div className="text-[11px] uppercase tracking-[0.22em] text-stone-500">
+                          Wine
+                        </div>
+
+                        <div className="mt-2 text-2xl font-semibold leading-tight text-white">
+                          {scanResult.wine}
+                        </div>
+
+                        <div className="mt-5 space-y-4">
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+                              Medal
+                            </div>
+
+                            <div className="mt-1 text-sm font-medium text-amber-300">
+                              {scanResult.medal}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+                              Session
+                            </div>
+
+                            <div className="mt-1 text-sm text-stone-200">
+                              {scanResult.session}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+                              Producer
+                            </div>
+
+                            <div className="mt-1 text-sm text-stone-200">
+                              {scanResult.producer}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
+                              Origin
+                            </div>
+
+                            <div className="mt-1 text-sm text-stone-200">
+                              {scanResult.country}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-7 flex justify-center">
-                    <motion.div
-                      animate={{
-                        boxShadow: [
-                          '0 0 30px rgba(245,190,80,0.12)',
-                          '0 0 60px rgba(245,190,80,0.28)',
-                          '0 0 30px rgba(245,190,80,0.12)',
-                        ],
-                      }}
-                      transition={{
-                        duration: 2.6,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                      }}
-                      className="rounded-full bg-amber-300/10 p-5"
+                  <div className="bg-black/35 px-7 py-5 backdrop-blur-xl">
+                    <a
+                      href={scanResult.feedbackUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]"
                     >
-                      <img
-                        src={`/medals/${
-                          scanResult.medal
-                            .toLowerCase()
-                            .includes('grand')
-                            ? 'grand-gold'
-                            : scanResult.medal
-                                .toLowerCase()
-                                .includes('silver')
-                            ? 'silver'
-                            : 'gold'
-                        }-${
-                          scanResult.session.match(
-                            /\d{4}/
-                          )?.[0] || '2024'
-                        }.png`}
-                        alt="CMB Medal"
-                        className="h-44 w-44 object-contain drop-shadow-2xl"
-                      />
-                    </motion.div>
+                      Open Official CMB Result
+
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                    </a>
                   </div>
-
-                  <div className="mt-7 text-center">
-                    <div className="text-base font-medium leading-snug text-white">
-                      {scanResult.wine}
-                    </div>
-
-                    <div className="mt-2 text-[10px] uppercase tracking-[0.28em] text-stone-500">
-                      Official CMB Recognition
-                    </div>
-                  </div>
-
-                  <div className="mt-7 grid gap-3 rounded-3xl border border-white/10 bg-black/45 p-5 text-sm backdrop-blur">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
-                        Medal
-                      </div>
-
-                      <div className="mt-1 font-medium text-amber-300">
-                        {scanResult.medal}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
-                        Competition
-                      </div>
-
-                      <div className="mt-1 text-stone-200">
-                        {scanResult.session}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
-                        Region
-                      </div>
-
-                      <div className="mt-1 text-stone-200">
-                        {scanResult.country}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
-                        Producer
-                      </div>
-
-                      <div className="mt-1 text-stone-200">
-                        {scanResult.producer}
-                      </div>
-                    </div>
-                  </div>
-
-                  <a
-                    href={scanResult.feedbackUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-7 inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]"
-                  >
-                    Open CMB result
-
-                    <ExternalLink className="ml-2 h-4 w-4" />
-                  </a>
                 </motion.div>
               )}
 
