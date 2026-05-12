@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+
 import {
   ExternalLink,
   MapPin,
@@ -93,6 +95,7 @@ function fileToBase64(file: File): Promise<string> {
       }
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
       resolve(canvas.toDataURL('image/jpeg', 0.92));
     };
 
@@ -167,6 +170,7 @@ export default function Page() {
       const imageBase64 = await fileToBase64(file);
 
       setPreview(imageBase64);
+
       setStatus('Reading label with AI vision...');
 
       const visionResponse = await fetch('/api/vision', {
@@ -196,9 +200,11 @@ export default function Page() {
         .join(' ');
 
       setStatus('Checking CMB index...');
+
       await scanCMBResults(detectedText, displayName, visionData);
     } catch (err) {
       console.error(err);
+
       setScanResult({ awarded: false });
     } finally {
       setLoading(false);
@@ -235,20 +241,24 @@ export default function Page() {
         <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
           <button
             onClick={() => setTab('scanner')}
-            className={`rounded-xl px-4 py-3 ${
-              tab === 'scanner' ? 'bg-amber-300 text-black' : 'text-white'
+            className={`rounded-xl px-4 py-3 transition-all ${
+              tab === 'scanner'
+                ? 'bg-amber-300 text-black'
+                : 'text-white hover:bg-white/5'
             }`}
           >
-            Label Photo
+            Scan
           </button>
 
           <button
             onClick={() => setTab('restaurants')}
-            className={`rounded-xl px-4 py-3 ${
-              tab === 'restaurants' ? 'bg-amber-300 text-black' : 'text-white'
+            className={`rounded-xl px-4 py-3 transition-all ${
+              tab === 'restaurants'
+                ? 'bg-amber-300 text-black'
+                : 'text-white hover:bg-white/5'
             }`}
           >
-            Restaurants
+            CMB Experience
           </button>
         </div>
 
@@ -266,8 +276,9 @@ export default function Page() {
                 the label as sharp as possible.
               </p>
 
-              <label className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02]">
-                Open camera
+              <label className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]">
+                Scan with camera
+
                 <input
                   type="file"
                   accept="image/*"
@@ -303,45 +314,45 @@ export default function Page() {
               )}
 
               {visionResult && (
-  <details className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-    <summary className="cursor-pointer px-4 py-3 text-xs uppercase tracking-[0.24em] text-stone-400">
-      AI Vision Reading
-    </summary>
+                <details className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                  <summary className="cursor-pointer px-4 py-3 text-xs uppercase tracking-[0.24em] text-stone-400">
+                    AI Vision Reading
+                  </summary>
 
-    <div className="border-t border-white/10 p-4">
-      <div className="space-y-2 text-xs leading-relaxed text-stone-300">
-        <div>
-          <span className="text-stone-500">Wine:</span>{' '}
-          {visionResult.wineName || 'Label text extracted'}
-        </div>
+                  <div className="border-t border-white/10 p-4">
+                    <div className="space-y-2 text-xs leading-relaxed text-stone-300">
+                      <div>
+                        <span className="text-stone-500">Wine:</span>{' '}
+                        {visionResult.wineName || 'Label text extracted'}
+                      </div>
 
-        <div>
-          <span className="text-stone-500">Producer:</span>{' '}
-          {visionResult.producer || 'Reading label'}
-        </div>
+                      <div>
+                        <span className="text-stone-500">Producer:</span>{' '}
+                        {visionResult.producer || 'Reading label'}
+                      </div>
 
-        <div>
-          <span className="text-stone-500">Vintage:</span>{' '}
-          {visionResult.vintage || 'Reading label'}
-        </div>
+                      <div>
+                        <span className="text-stone-500">Vintage:</span>{' '}
+                        {visionResult.vintage || 'Reading label'}
+                      </div>
 
-        <div>
-          <span className="text-stone-500">Region:</span>{' '}
-          {scanResult?.awarded
-            ? scanResult.country
-            : visionResult.countryOrRegion || 'Reading label'}
-        </div>
+                      <div>
+                        <span className="text-stone-500">Region:</span>{' '}
+                        {scanResult?.awarded
+                          ? scanResult.country
+                          : visionResult.countryOrRegion || 'Reading label'}
+                      </div>
 
-        <div>
-          <span className="text-stone-500">Confidence:</span>{' '}
-          {visionResult.confidence
-            ? `${Math.round(visionResult.confidence * 100)}%`
-            : 'AI label reading active'}
-        </div>
-      </div>
-    </div>
-  </details>
-)}
+                      <div>
+                        <span className="text-stone-500">Confidence:</span>{' '}
+                        {visionResult.confidence
+                          ? `${Math.round(visionResult.confidence * 100)}%`
+                          : 'AI label reading active'}
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              )}
 
               {!scanResult && !loading && (
                 <div className="py-14 text-center text-stone-500">
@@ -350,7 +361,12 @@ export default function Page() {
               )}
 
               {scanResult?.awarded === true && (
-                <div className="mt-6 overflow-hidden rounded-[40px] border border-amber-300/25 bg-[radial-gradient(circle_at_top,rgba(245,190,80,0.18),rgba(0,0,0,0.96)_55%)] p-7 shadow-[0_24px_90px_rgba(0,0,0,0.75)]">
+                <motion.div
+                  initial={{ opacity: 0, y: 30, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.55, ease: 'easeOut' }}
+                  className="mt-6 overflow-hidden rounded-[40px] border border-amber-300/25 bg-[radial-gradient(circle_at_top,rgba(245,190,80,0.18),rgba(0,0,0,0.96)_55%)] p-7 shadow-[0_24px_90px_rgba(0,0,0,0.75)]"
+                >
                   <div className="text-center">
                     <div className="mx-auto mb-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200">
                       Verified Result
@@ -358,6 +374,7 @@ export default function Page() {
 
                     <div className="flex items-center justify-center gap-3 text-amber-300">
                       <ShieldCheck className="h-6 w-6" />
+
                       <div className="whitespace-nowrap text-xl font-bold uppercase tracking-[0.08em]">
                         Awarded by CMB
                       </div>
@@ -365,7 +382,21 @@ export default function Page() {
                   </div>
 
                   <div className="mt-7 flex justify-center">
-                    <div className="rounded-full bg-amber-300/10 p-5 shadow-[0_0_60px_rgba(245,190,80,0.22)]">
+                    <motion.div
+                      animate={{
+                        boxShadow: [
+                          '0 0 30px rgba(245,190,80,0.12)',
+                          '0 0 60px rgba(245,190,80,0.28)',
+                          '0 0 30px rgba(245,190,80,0.12)',
+                        ],
+                      }}
+                      transition={{
+                        duration: 2.6,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                      className="rounded-full bg-amber-300/10 p-5"
+                    >
                       <img
                         src={`/medals/${
                           scanResult.medal.toLowerCase().includes('grand')
@@ -379,7 +410,7 @@ export default function Page() {
                         alt="CMB Medal"
                         className="h-44 w-44 object-contain drop-shadow-2xl"
                       />
-                    </div>
+                    </motion.div>
                   </div>
 
                   <div className="mt-7 text-center">
@@ -397,6 +428,7 @@ export default function Page() {
                       <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                         Medal
                       </div>
+
                       <div className="mt-1 font-medium text-amber-300">
                         {scanResult.medal}
                       </div>
@@ -406,6 +438,7 @@ export default function Page() {
                       <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                         Competition
                       </div>
+
                       <div className="mt-1 text-stone-200">
                         {scanResult.session}
                       </div>
@@ -415,6 +448,7 @@ export default function Page() {
                       <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                         Region
                       </div>
+
                       <div className="mt-1 text-stone-200">
                         {scanResult.country}
                       </div>
@@ -424,6 +458,7 @@ export default function Page() {
                       <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                         Producer
                       </div>
+
                       <div className="mt-1 text-stone-200">
                         {scanResult.producer}
                       </div>
@@ -434,18 +469,22 @@ export default function Page() {
                     href={scanResult.feedbackUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-7 inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.01]"
+                    className="mt-7 inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]"
                   >
                     Open CMB result
+
                     <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
-                </div>
+                </motion.div>
               )}
 
               {scanResult?.awarded === false && (
                 <div className="py-10 text-center">
                   <XCircle className="mx-auto mb-3 h-10 w-10 text-red-500" />
-                  <div className="text-xl text-white">Not awarded</div>
+
+                  <div className="text-xl text-white">
+                    Not awarded
+                  </div>
                 </div>
               )}
             </div>
@@ -459,7 +498,9 @@ export default function Page() {
                 key={idx}
                 className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6"
               >
-                <h2 className="text-2xl font-semibold">{group.region}</h2>
+                <h2 className="text-2xl font-semibold">
+                  {group.region}
+                </h2>
 
                 <div className="mt-4 grid gap-3">
                   {group.restaurants.map((r, i) => (
@@ -467,10 +508,13 @@ export default function Page() {
                       key={i}
                       className="rounded-2xl border border-white/10 p-4"
                     >
-                      <div className="font-semibold text-white">{r.name}</div>
+                      <div className="font-semibold text-white">
+                        {r.name}
+                      </div>
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
                         <MapPin className="h-4 w-4 text-amber-300" />
+
                         {r.city}, {r.country}
                       </div>
                     </div>
