@@ -71,6 +71,7 @@ type Region = {
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+
     const reader = new FileReader();
 
     reader.onload = () => {
@@ -83,15 +84,18 @@ function fileToBase64(file: File): Promise<string> {
       const canvas = document.createElement('canvas');
 
       const maxWidth = 1400;
+
       const scale = maxWidth / img.width;
 
       canvas.width = maxWidth;
+
       canvas.height = img.height * scale;
 
       const ctx = canvas.getContext('2d');
 
       if (!ctx) {
         reject('No canvas context');
+
         return;
       }
 
@@ -105,7 +109,8 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function Page() {
-  const [scanResult, setScanResult] = useState<ScanResult>(null);
+  const [scanResult, setScanResult] =
+    useState<ScanResult>(null);
 
   const [visionResult, setVisionResult] =
     useState<VisionResult | null>(null);
@@ -247,14 +252,14 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#3a240d_0%,#090909_38%,#000000_100%)] text-white">
-      <div className="pointer-events-none absolute inset-0 opacity-30">
-        <div className="absolute left-[-10%] top-[10%] h-[320px] w-[320px] rounded-full bg-amber-400/10 blur-3xl" />
+    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#3d240c_0%,#090909_38%,#000000_100%)] text-white">
+      <div className="pointer-events-none absolute inset-0 opacity-40">
+        <div className="absolute left-[-10%] top-[10%] h-[340px] w-[340px] rounded-full bg-amber-400/10 blur-3xl" />
 
-        <div className="absolute right-[-5%] top-[35%] h-[260px] w-[260px] rounded-full bg-yellow-200/5 blur-3xl" />
+        <div className="absolute right-[-5%] top-[35%] h-[280px] w-[280px] rounded-full bg-yellow-200/5 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto min-h-screen max-w-md px-4 pb-14 pt-6">
+      <div className="relative mx-auto min-h-screen max-w-md px-4 pb-16 pt-6">
         <div className="mb-8 flex items-center justify-between">
           <BrandMark />
 
@@ -362,63 +367,13 @@ export default function Page() {
 
               <p className="mt-2 text-sm text-stone-400">
                 AI vision + CMB index matching
-              </p>              {loading && (
+              </p>
+
+              {loading && (
                 <div className="mt-6 flex items-center gap-3 rounded-3xl border border-amber-300/15 bg-[linear-gradient(145deg,rgba(245,190,80,0.08),rgba(0,0,0,0.92))] p-5 text-sm text-amber-100 shadow-[0_12px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                   <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
 
                   {status || 'Processing...'}
-                </div>
-              )}
-
-              {visionResult && (
-                <details className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                  <summary className="cursor-pointer px-4 py-3 text-xs uppercase tracking-[0.24em] text-stone-400">
-                    AI Vision Reading
-                  </summary>
-
-                  <div className="border-t border-white/10 p-4">
-                    <div className="space-y-2 text-xs leading-relaxed text-stone-300">
-                      <div>
-                        <span className="text-stone-500">
-                          Wine:
-                        </span>{' '}
-                        {visionResult.wineName ||
-                          'Label text extracted'}
-                      </div>
-
-                      <div>
-                        <span className="text-stone-500">
-                          Producer:
-                        </span>{' '}
-                        {visionResult.producer ||
-                          'Reading label'}
-                      </div>
-
-                      <div>
-                        <span className="text-stone-500">
-                          Vintage:
-                        </span>{' '}
-                        {visionResult.vintage ||
-                          'Reading label'}
-                      </div>
-
-                      <div>
-                        <span className="text-stone-500">
-                          Region:
-                        </span>{' '}
-                        {scanResult?.awarded
-                          ? scanResult.country
-                          : visionResult.countryOrRegion ||
-                            'Reading label'}
-                      </div>
-                    </div>
-                  </div>
-                </details>
-              )}
-
-              {!scanResult && !loading && (
-                <div className="py-14 text-center text-stone-500">
-                  Waiting label photo...
                 </div>
               )}
 
@@ -438,12 +393,14 @@ export default function Page() {
                     duration: 0.55,
                     ease: 'easeOut',
                   }}
-                  className="mt-6 overflow-hidden rounded-[42px] border border-amber-300/20 bg-[linear-gradient(160deg,rgba(245,190,80,0.12),rgba(0,0,0,0.96))] p-0 shadow-[0_28px_100px_rgba(0,0,0,0.72)]"
+                  className="relative mt-8 overflow-hidden rounded-[42px] border border-amber-300/20 bg-[linear-gradient(160deg,rgba(245,190,80,0.12),rgba(0,0,0,0.96))] shadow-[0_30px_120px_rgba(0,0,0,0.78)]"
                 >
-                  <div className="relative overflow-hidden border-b border-white/10 px-7 pb-10 pt-7">
-                    <div className="absolute right-[-15%] top-[-10%] h-[220px] w-[220px] rounded-full bg-amber-300/10 blur-3xl" />
+                  <div className="absolute left-[-15%] top-[10%] h-[260px] w-[260px] rounded-full bg-amber-300/10 blur-3xl" />
 
-                    <div className="relative z-10 flex items-center justify-between">
+                  <div className="absolute right-[-10%] top-[20%] h-[220px] w-[220px] rounded-full bg-yellow-200/5 blur-3xl" />
+
+                  <div className="relative z-10 px-7 pb-8 pt-7">
+                    <div className="flex items-start justify-between">
                       <div>
                         <div className="text-[10px] uppercase tracking-[0.28em] text-amber-200">
                           Official Verification
@@ -466,7 +423,6 @@ export default function Page() {
                           duration: 5,
                           repeat: Infinity,
                         }}
-                        className="relative"
                       >
                         <img
                           src={`/medals/${
@@ -490,28 +446,40 @@ export default function Page() {
                       </motion.div>
                     </div>
 
-                    <div className="relative z-10 mt-8 flex items-center gap-6">
-                      <div className="flex h-[210px] w-[120px] items-center justify-center rounded-[28px] border border-white/10 bg-black/30 p-2 backdrop-blur-xl">
+                    <div className="mt-10 flex items-center gap-5">
+                      <motion.div
+                        animate={{
+                          y: [0, -6, 0],
+                        }}
+                        transition={{
+                          duration: 4,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
+                        className="relative flex h-[320px] w-[135px] items-center justify-center"
+                      >
+                        <div className="absolute inset-0 rounded-[40px] bg-amber-300/10 blur-2xl" />
+
                         <img
                           src={
                             scanResult.productImageUrl ||
                             '/placeholders/wine-placeholder.png'
                           }
                           alt={scanResult.wine}
-                          className="h-full object-contain"
+                          className="relative z-10 h-full object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.75)]"
                         />
-                      </div>
+                      </motion.div>
 
                       <div className="flex-1">
-                        <div className="text-[11px] uppercase tracking-[0.22em] text-stone-500">
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-stone-500">
                           Wine
                         </div>
 
-                        <div className="mt-2 text-2xl font-semibold leading-tight text-white">
+                        <div className="mt-2 text-[30px] font-semibold leading-[1.02] tracking-[-0.03em] text-white">
                           {scanResult.wine}
                         </div>
 
-                        <div className="mt-5 space-y-4">
+                        <div className="mt-7 space-y-5">
                           <div>
                             <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                               Medal
@@ -527,7 +495,7 @@ export default function Page() {
                               Session
                             </div>
 
-                            <div className="mt-1 text-sm text-stone-200">
+                            <div className="mt-1 text-sm leading-relaxed text-stone-200">
                               {scanResult.session}
                             </div>
                           </div>
@@ -537,7 +505,7 @@ export default function Page() {
                               Producer
                             </div>
 
-                            <div className="mt-1 text-sm text-stone-200">
+                            <div className="mt-1 text-sm leading-relaxed text-stone-200">
                               {scanResult.producer}
                             </div>
                           </div>
@@ -547,7 +515,7 @@ export default function Page() {
                               Origin
                             </div>
 
-                            <div className="mt-1 text-sm text-stone-200">
+                            <div className="mt-1 text-sm leading-relaxed text-stone-200">
                               {scanResult.country}
                             </div>
                           </div>
@@ -556,7 +524,7 @@ export default function Page() {
                     </div>
                   </div>
 
-                  <div className="bg-black/35 px-7 py-5 backdrop-blur-xl">
+                  <div className="border-t border-white/10 bg-black/30 px-7 py-5 backdrop-blur-xl">
                     <a
                       href={scanResult.feedbackUrl}
                       target="_blank"
