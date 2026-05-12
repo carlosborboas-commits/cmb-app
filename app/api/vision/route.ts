@@ -67,7 +67,8 @@ JSON schema:
             },
             {
               type: 'input_image',
-              image_url: image,
+  image_url: image,
+  detail: 'high',
             },
           ],
         },
