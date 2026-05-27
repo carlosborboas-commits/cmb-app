@@ -2,58 +2,115 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-function normalize(value: string) {
+function normalize(value: string = '') {
   return value
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[·•–—_\-\/]/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
     .replace(
-      /\b(reserve|reserva|estate|bottled|producer|cellars|vineyards|vin|wine|appellation|controlee|mis en bouteille|grand vin)\b/g,
+      /\b(reserve|reserva|estate|bottled|producer|cellars|vineyards|wine|vin|grand|selection|official|label|appellation|controlee|mis|bouteille)\b/g,
       ' '
     )
-    .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function containsWord(text: string, words: string[]) {
-  return words.some((word) =>
-    text.includes(word.toLowerCase())
-  );
+function tokens(value: string = '') {
+  return normalize(value)
+    .split(' ')
+    .filter((t) => t.length >= 3);
 }
 
-function similarity(a: string, b: string) {
-  const aa = normalize(a).split(' ');
-  const bb = normalize(b).split(' ');
+function tokenOverlap(source: string, target: string) {
+  const a = tokens(source);
+  const b = tokens(target);
 
-  let score = 0;
+  if (!a.length || !b.length) return 0;
 
-  for (const word of aa) {
-    if (word.length < 3) continue;
+  const matches = a.filter((t) => b.includes(t)).length;
 
-    if (bb.includes(word)) score++;
+  return matches / a.length;
+}
+
+function hasToken(value: string, token: string) {
+  return tokens(value).includes(normalize(token));
+}
+
+function year(value: any) {
+  return Number(String(value || '').match(/\d{4}/)?.[0] || 0);
+}
+
+function sameVintage(a: string, b: string) {
+  const aa = String(a || '').match(/\d{4}/)?.[0] || '';
+  const bb = String(b || '').match(/\d{4}/)?.[0] || '';
+
+  if (!aa || !bb) return true;
+
+  return aa === bb;
+}
+
+function stylePenalty(search: string, candidate: string) {
+  const s = normalize(search);
+  const c = normalize(candidate);
+
+  const groups = [
+    {
+      name: 'white',
+      words: ['chardonnay', 'riesling', 'viognier', 'sauvignon', 'blanc', 'white'],
+      conflicts: ['cabernet', 'merlot', 'syrah', 'malbec', 'marselan', 'red', 'rouge'],
+    },
+    {
+      name: 'red',
+      words: ['cabernet', 'merlot', 'syrah', 'malbec', 'marselan', 'red', 'rouge'],
+      conflicts: ['chardonnay', 'riesling', 'viognier', 'sauvignon', 'blanc', 'white'],
+    },
+    {
+      name: 'rose',
+      words: ['rose', 'rosé'],
+      conflicts: ['white', 'blanc', 'red', 'rouge', 'cabernet', 'chardonnay'],
+    },
+    {
+      name: 'sparkling',
+      words: ['brut', 'sparkling', 'spumante', 'sekt', 'champagne', 'cava'],
+      conflicts: [],
+    },
+  ];
+
+  let penalty = 0;
+
+  for (const group of groups) {
+    const searchHasGroup = group.words.some((w) => s.includes(w));
+    const candidateHasConflict = group.conflicts.some((w) => c.includes(w));
+
+    if (searchHasGroup && candidateHasConflict) {
+      penalty += 0.35;
+    }
   }
 
-  return score / Math.max(aa.length, 1);
+  return penalty;
+}
+
+function criticalTokenMissPenalty(searchWine: string, candidateWine: string) {
+  const source = tokens(searchWine).filter((t) => t.length >= 5);
+  const candidate = tokens(candidateWine);
+
+  if (!source.length) return 0;
+
+  const missed = source.filter((t) => !candidate.includes(t));
+
+  return missed.length / source.length;
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const wineName = body.wineName || '';
-    const producer = body.producer || '';
-    const vintage = body.vintage || '';
-    const detectedText = body.detectedText || '';
-
-    const searchText = normalize(
-      [
-        wineName,
-        producer,
-        vintage,
-        detectedText,
-      ].join(' ')
-    );
+    const wineName = String(body.wineName || '');
+    const producer = String(body.producer || '');
+    const vintage = String(body.vintage || '');
+    const detectedText = String(body.detectedText || '');
 
     const filePath = path.join(
       process.cwd(),
@@ -63,154 +120,127 @@ export async function POST(req: Request) {
     );
 
     const raw = fs.readFileSync(filePath, 'utf8');
-
     const records = JSON.parse(raw);
 
-    let candidates: any[] = [];
+    const searchWine = wineName || detectedText;
+    const searchAll = [wineName, producer, vintage, detectedText].join(' ');
 
-    for (const item of records) {
-      const candidateText = normalize(
-        [
+    const scored = records
+      .map((item: any) => {
+        const candidateWine = `${item.wineName || ''} ${item.vintage || ''}`;
+        const candidateAll = [
           item.wineName,
           item.producer,
           item.vintage,
           item.country,
           item.region,
           item.appellation,
-        ].join(' ')
-      );
+          item.color,
+          item.type,
+          item.subType,
+        ].join(' ');
 
-      let wineScore = similarity(
-        `${wineName} ${vintage}`,
-        `${item.wineName} ${item.vintage}`
-      );
+        const wineScore = tokenOverlap(searchWine, candidateWine);
+        const producerScore = producer
+          ? tokenOverlap(producer, item.producer || '')
+          : 0;
+        const fullScore = tokenOverlap(searchAll, candidateAll);
 
-      let producerScore = similarity(
-        producer,
-        item.producer
-      );
+        const vintageOk = sameVintage(vintage, item.vintage || '');
+        const vintageExact =
+          vintage && item.vintage && String(vintage) === String(item.vintage);
 
-      let textScore = similarity(
-        searchText,
-        candidateText
-      );
+        let score =
+          wineScore * 0.62 +
+          producerScore * 0.23 +
+          fullScore * 0.15;
 
-      let total =
-        wineScore * 0.45 +
-        producerScore * 0.4 +
-        textScore * 0.15;
+        if (vintageExact) score += 0.22;
+        if (vintage && !vintageOk) score -= 0.45;
 
-      const lowerSearch = searchText.toLowerCase();
+        score -= stylePenalty(searchAll, candidateAll);
 
-      const lowerCandidate = candidateText.toLowerCase();
+        const criticalPenalty = criticalTokenMissPenalty(
+          searchWine,
+          item.wineName || ''
+        );
 
-      const whiteKeywords = [
-        'chardonnay',
-        'blanc',
-        'white',
-      ];
+        score -= criticalPenalty * 0.45;
 
-      const redKeywords = [
-        'cabernet',
-        'merlot',
-        'syrah',
-        'malbec',
-        'red',
-        'rouge',
-      ];
+        const candidateYear = year(item.year);
+        score += candidateYear * 0.00003;
 
-      const roseKeywords = [
-        'rose',
-        'rosé',
-      ];
+        return {
+          item,
+          score,
+          wineScore,
+          producerScore,
+          fullScore,
+          vintageOk,
+          candidateYear,
+        };
+      })
+      .filter((entry: any) => {
+        if (!entry.vintageOk) return false;
 
-      if (
-        containsWord(lowerSearch, whiteKeywords) &&
-        containsWord(lowerCandidate, redKeywords)
-      ) {
-        total -= 0.45;
-      }
+        // Regla anti-falsos positivos:
+        // si el nombre del vino no coincide fuerte, NO validar.
+        if (entry.wineScore < 0.62) return false;
 
-      if (
-        containsWord(lowerSearch, redKeywords) &&
-        containsWord(lowerCandidate, whiteKeywords)
-      ) {
-        total -= 0.45;
-      }
+        // Si hay productor leído, debe aportar algo o el nombre debe ser muy fuerte.
+        if (producer && entry.producerScore < 0.18 && entry.wineScore < 0.82) {
+          return false;
+        }
 
-      if (
-        containsWord(lowerSearch, roseKeywords) &&
-        !containsWord(lowerCandidate, roseKeywords)
-      ) {
-        total -= 0.55;
-      }
+        return entry.score >= 0.55;
+      })
+      .sort((a: any, b: any) => b.score - a.score);
 
-      if (
-        vintage &&
-        item.vintage &&
-        vintage !== item.vintage
-      ) {
-        total -= 0.18;
-      }
-
-      if (
-        producer &&
-        producer.length > 3 &&
-        !normalize(item.producer).includes(
-          normalize(producer)
-        )
-      ) {
-        total -= 0.12;
-      }
-
-      const yearValue = parseInt(item.year || '0');
-
-      total += yearValue * 0.0001;
-
-      candidates.push({
-        item,
-        score: total,
-      });
-    }
-
-    candidates.sort((a, b) => b.score - a.score);
-
-    const best = candidates[0];
-
-    if (!best || best.score < 0.42) {
+    if (!scored.length) {
       return NextResponse.json({
         awarded: false,
-        debug: candidates.slice(0, 5),
+        reason: 'low_confidence',
       });
     }
 
-    const bestMatch = best.item;
+    let best = scored[0].item;
+
+    // Si hay mismo vino/productor en años distintos, mostrar premio más reciente.
+    const sameWineRecords = records
+      .filter((r: any) => {
+        const sameWine =
+          normalize(r.wineName || '') === normalize(best.wineName || '');
+
+        const sameProducer =
+          normalize(r.producer || '') === normalize(best.producer || '');
+
+        const vintageCompatible = sameVintage(vintage, r.vintage || '');
+
+        return sameWine && sameProducer && vintageCompatible;
+      })
+      .sort((a: any, b: any) => year(b.year) - year(a.year));
+
+    if (sameWineRecords.length) {
+      best = sameWineRecords[0];
+    }
 
     return NextResponse.json({
       awarded: true,
-
-      wine: `${bestMatch.wineName} ${bestMatch.vintage}`,
-
-      producer: bestMatch.producer,
-
-      country:
-        bestMatch.location || bestMatch.country,
-
-      medal: bestMatch.medal,
-
-      session: `${bestMatch.session} · ${bestMatch.year}`,
-
-      feedbackUrl: bestMatch.resultUrl,
-
-      productImageUrl: bestMatch.imageUrl,
-
-      debug: candidates.slice(0, 5),
+      wine: `${best.wineName || ''} ${best.vintage || ''}`.trim(),
+      producer: best.producer,
+      country: best.location || best.country,
+      medal: best.medal,
+      session: `${best.session} · ${best.year}`,
+      feedbackUrl: best.resultUrl,
+      productImageUrl: best.imageUrl,
+      confidence: Math.min(1, Math.max(0, scored[0].score)),
     });
   } catch (err) {
     console.error(err);
 
     return NextResponse.json({
       awarded: false,
+      reason: 'server_error',
     });
   }
 }
