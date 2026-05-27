@@ -405,7 +405,7 @@ const handlePhoto = async (
               </p>
 
               <label className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]">
-  Open camera
+  Open native camera
 
   <input
     type="file"
@@ -431,7 +431,7 @@ const handlePhoto = async (
             <div className="rounded-[38px] border border-white/10 bg-white/[0.035] p-6 shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-xl">
               <h2 className="text-2xl font-semibold">Result</h2>
 
-              <p className="mt-2 text-sm text-stone-400">Official recognition verification</p>
+              <p className="mt-2 text-sm text-stone-400">AI vision + CMB index matching</p>
 
               {loading && (
                 <div className="mt-6 flex items-center gap-3 rounded-3xl border border-amber-300/15 bg-[linear-gradient(145deg,rgba(245,190,80,0.08),rgba(0,0,0,0.92))] p-5 text-sm text-amber-100 shadow-[0_12px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
@@ -541,51 +541,19 @@ const handlePhoto = async (
                       Open Official CMB Result
                       <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
-                    <button
-  onClick={() => {
-    setPreview(null);
-    setVisionResult(null);
-    setScanResult(null);
-  }}
-  className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-medium text-white transition-all hover:bg-white/[0.08]"
->
-  Scan another wine
-</button>
                   </div>
                 </motion.div>
               )}
 
               {scanResult?.awarded === false && (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.45 }}
-    className="mt-8 overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.03),rgba(0,0,0,0.92))] p-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.55)]"
-  >
-    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/[0.03]">
-      <XCircle className="h-9 w-9 text-stone-400" />
-    </div>
-
-    <div className="mt-6 text-2xl font-semibold text-white">
-      No official award found
-    </div>
-
-    <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-stone-400">
-      No official CMB recognition was found in the current database for this wine.
-    </p>
-
-    <button
-      onClick={() => {
-        setPreview(null);
-        setVisionResult(null);
-        setScanResult(null);
-      }}
-      className="mt-7 inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-medium text-white transition-all hover:bg-white/[0.08]"
-    >
-      Scan another wine
-    </button>
-  </motion.div>
-)}
+                <div className="py-10 text-center">
+                  <XCircle className="mx-auto mb-3 h-10 w-10 text-red-500" />
+                  <div className="text-xl text-white">Not awarded</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {tab === 'restaurants' && (
           <div className="mt-6 space-y-4">
