@@ -358,12 +358,17 @@ export default function Page() {
                 Open the live camera and align the label inside the golden frame.
               </p>
 
-              <button
-                onClick={openCamera}
-                className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]"
-              >
-                Open live scanner
-              </button>
+              <label className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]">
+  Open native camera
+
+  <input
+    type="file"
+    accept="image/*"
+    capture="environment"
+    onChange={handlePhoto}
+    className="hidden"
+  />
+</label>
             </motion.div>
 
             {preview && (
