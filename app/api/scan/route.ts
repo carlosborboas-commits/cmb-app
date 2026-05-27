@@ -10,7 +10,7 @@ function normalize(value: string = '') {
     .replace(/[·•–—_\-\/]/g, ' ')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(
-      /\b(reserve|reserva|estate|bottled|producer|cellars|vineyards|wine|vin|grand|selection|official|label|appellation|controlee|mis|bouteille)\b/g,
+      /\b(estate|bottled|producer|cellars|vineyards|wine|vin|official|label|appellation|controlee|mis|bouteille)\b/g,
       ' '
     )
     .replace(/\s+/g, ' ')
@@ -30,12 +30,7 @@ function tokenOverlap(source: string, target: string) {
   if (!a.length || !b.length) return 0;
 
   const matches = a.filter((t) => b.includes(t)).length;
-
   return matches / a.length;
-}
-
-function hasToken(value: string, token: string) {
-  return tokens(value).includes(normalize(token));
 }
 
 function year(value: any) {
@@ -45,47 +40,62 @@ function year(value: any) {
 function sameVintage(a: string, b: string) {
   const aa = String(a || '').match(/\d{4}/)?.[0] || '';
   const bb = String(b || '').match(/\d{4}/)?.[0] || '';
-
   if (!aa || !bb) return true;
-
   return aa === bb;
 }
 
+function hasAny(text: string, list: string[]) {
+  const normalized = normalize(text);
+  return list.some((item) => normalized.includes(normalize(item)));
+}
+
 function stylePenalty(search: string, candidate: string) {
-  const s = normalize(search);
-  const c = normalize(candidate);
+  let penalty = 0;
 
   const groups = [
     {
-      name: 'white',
       words: ['chardonnay', 'riesling', 'viognier', 'sauvignon', 'blanc', 'white'],
-      conflicts: ['cabernet', 'merlot', 'syrah', 'malbec', 'marselan', 'red', 'rouge'],
+      conflicts: ['cabernet', 'merlot', 'syrah', 'malbec', 'marselan', 'red', 'rouge', 'roble', 'reserva'],
     },
     {
-      name: 'red',
       words: ['cabernet', 'merlot', 'syrah', 'malbec', 'marselan', 'red', 'rouge'],
       conflicts: ['chardonnay', 'riesling', 'viognier', 'sauvignon', 'blanc', 'white'],
     },
     {
-      name: 'rose',
       words: ['rose', 'rosé'],
       conflicts: ['white', 'blanc', 'red', 'rouge', 'cabernet', 'chardonnay'],
     },
-    {
-      name: 'sparkling',
-      words: ['brut', 'sparkling', 'spumante', 'sekt', 'champagne', 'cava'],
-      conflicts: [],
-    },
   ];
 
+  for (const group of groups) {
+    if (hasAny(search, group.words) && hasAny(candidate, group.conflicts)) {
+      penalty += 0.35;
+    }
+  }
+
+  return penalty;
+}
+
+function categoryConflictPenalty(searchWine: string, candidateWine: string) {
   let penalty = 0;
 
-  for (const group of groups) {
-    const searchHasGroup = group.words.some((w) => s.includes(w));
-    const candidateHasConflict = group.conflicts.some((w) => c.includes(w));
+  const pairs = [
+    ['reserva', 'roble'],
+    ['grande reserva', 'roble'],
+    ['gran reserva', 'roble'],
+    ['brut', 'saten'],
+    ['nature', 'extra brut'],
+    ['white', 'red'],
+    ['blanco', 'tinto'],
+    ['branco', 'tinto'],
+  ];
 
-    if (searchHasGroup && candidateHasConflict) {
-      penalty += 0.35;
+  for (const [searchTerm, conflictingTerm] of pairs) {
+    if (
+      normalize(searchWine).includes(normalize(searchTerm)) &&
+      normalize(candidateWine).includes(normalize(conflictingTerm))
+    ) {
+      penalty += 0.55;
     }
   }
 
@@ -99,8 +109,21 @@ function criticalTokenMissPenalty(searchWine: string, candidateWine: string) {
   if (!source.length) return 0;
 
   const missed = source.filter((t) => !candidate.includes(t));
-
   return missed.length / source.length;
+}
+
+function isWeakNameMatch(searchWine: string, candidateWine: string) {
+  const source = tokens(searchWine).filter((t) => t.length >= 4);
+  const candidate = tokens(candidateWine);
+
+  if (!source.length) return true;
+
+  const matches = source.filter((t) => candidate.includes(t));
+
+  // Si sólo comparte una palabra genérica, es demasiado débil.
+  if (matches.length <= 1 && source.length >= 2) return true;
+
+  return false;
 }
 
 export async function POST(req: Request) {
@@ -151,24 +174,24 @@ export async function POST(req: Request) {
           vintage && item.vintage && String(vintage) === String(item.vintage);
 
         let score =
-          wineScore * 0.62 +
-          producerScore * 0.23 +
-          fullScore * 0.15;
+          wineScore * 0.66 +
+          producerScore * 0.2 +
+          fullScore * 0.14;
 
-        if (vintageExact) score += 0.22;
-        if (vintage && !vintageOk) score -= 0.45;
+        if (vintageExact) score += 0.28;
+        if (vintage && !vintageOk) score -= 0.75;
 
         score -= stylePenalty(searchAll, candidateAll);
+        score -= categoryConflictPenalty(searchWine, candidateWine);
 
         const criticalPenalty = criticalTokenMissPenalty(
           searchWine,
           item.wineName || ''
         );
 
-        score -= criticalPenalty * 0.45;
+        score -= criticalPenalty * 0.38;
 
-        const candidateYear = year(item.year);
-        score += candidateYear * 0.00003;
+        score += year(item.year) * 0.000025;
 
         return {
           item,
@@ -177,22 +200,21 @@ export async function POST(req: Request) {
           producerScore,
           fullScore,
           vintageOk,
-          candidateYear,
+          weakName: isWeakNameMatch(searchWine, candidateWine),
         };
       })
       .filter((entry: any) => {
         if (!entry.vintageOk) return false;
 
-        // Regla anti-falsos positivos:
-        // si el nombre del vino no coincide fuerte, NO validar.
-        if (entry.wineScore < 0.62) return false;
+        // Evita falsos positivos tipo Reserva -> Roble.
+        if (entry.weakName && entry.wineScore < 0.85) return false;
 
-        // Si hay productor leído, debe aportar algo o el nombre debe ser muy fuerte.
-        if (producer && entry.producerScore < 0.18 && entry.wineScore < 0.82) {
+        // Si existe productor leído, debe ayudar salvo nombre exactísimo.
+        if (producer && entry.producerScore < 0.16 && entry.wineScore < 0.86) {
           return false;
         }
 
-        return entry.score >= 0.55;
+        return entry.score >= 0.58;
       })
       .sort((a: any, b: any) => b.score - a.score);
 
@@ -205,7 +227,6 @@ export async function POST(req: Request) {
 
     let best = scored[0].item;
 
-    // Si hay mismo vino/productor en años distintos, mostrar premio más reciente.
     const sameWineRecords = records
       .filter((r: any) => {
         const sameWine =
