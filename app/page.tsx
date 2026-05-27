@@ -167,7 +167,21 @@ export default function Page() {
       setScanResult(data);
     }
   };
+const handlePhoto = async (
+  event: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = event.target.files?.[0];
 
+  if (!file) return;
+
+  try {
+    const imageBase64 = await fileToBase64(file);
+    await processImage(imageBase64);
+  } catch (err) {
+    console.error(err);
+    setScanResult({ awarded: false });
+  }
+};
   const processImage = async (imageBase64: string) => {
     setLoading(true);
     setStatus('Analyzing label structure...');
