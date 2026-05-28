@@ -74,11 +74,25 @@ function getCandidateText(item: any) {
   ].join(' ');
 }
 
+function isClearlyRedCandidate(item: any) {
+  const text = getCandidateText(item);
+  return hasAny(text, [
+    'red',
+    'rouge',
+    'tinto',
+    'vranec',
+    'cabernet',
+    'merlot',
+    'syrah',
+    'marselan',
+  ]);
+}
+
 function identityCompatible(search: string, candidate: string) {
   const s = normalize(search);
   const c = normalize(candidate);
 
-  const critical = [
+  const strictTerms = [
     'nabaifu',
     'heyu',
     'yizhu',
@@ -91,7 +105,7 @@ function identityCompatible(search: string, candidate: string) {
     'semisweet',
   ];
 
-  for (const term of critical) {
+  for (const term of strictTerms) {
     const st = normalize(term);
 
     if (s.includes(st)) {
@@ -105,15 +119,8 @@ function identityCompatible(search: string, candidate: string) {
   }
 
   if (
-    hasAny(s, ['white', 'blanc', 'branco']) &&
+    hasAny(s, ['white', 'blanc', 'branco', 'icewine', 'ice wine']) &&
     hasAny(c, ['red', 'rouge', 'tinto', 'vranec', 'cabernet', 'merlot', 'syrah', 'marselan'])
-  ) {
-    return false;
-  }
-
-  if (
-    hasAny(s, ['icewine', 'ice wine']) &&
-    !hasAny(c, ['icewine', 'ice wine'])
   ) {
     return false;
   }
@@ -124,17 +131,100 @@ function identityCompatible(search: string, candidate: string) {
 function isSweetWhiteRescueCandidate(item: any) {
   const text = getCandidateText(item);
 
+  if (isClearlyRedCandidate(item)) return false;
+
   return (
-    item.imageUrl &&
-    (
-      hasAny(text, ['icewine', 'ice wine']) ||
-      hasAny(text, ['vidal']) ||
-      hasAny(text, ['sweet']) ||
-      hasAny(text, ['white', 'blanc']) ||
-      hasAny(text, ['nabaifu', 'heyu', 'yizhu'])
-    ) &&
-    !hasAny(text, ['red', 'rouge', 'tinto', 'vranec', 'cabernet', 'merlot', 'syrah', 'marselan'])
+    hasAny(text, ['icewine', 'ice wine']) ||
+    hasAny(text, ['vidal']) ||
+    hasAny(text, ['sweet']) ||
+    hasAny(text, ['white', 'blanc']) ||
+    hasAny(text, ['nabaifu', 'heyu', 'yizhu']) ||
+    hasAny(text, ['china', 'liaoning', 'jilin'])
   );
+}
+
+async function visualTextRescue(
+  capturedImage: string,
+  candidates: any[],
+  vintage: string
+) {
+  if (!capturedImage || candidates.length === 0) return null;
+
+  const batches = [];
+
+  for (let i = 0; i < candidates.length; i += 30) {
+    batches.push(candidates.slice(i, i + 30));
+  }
+
+  for (const batch of batches) {
+    const candidateText = batch
+      .map(
+        (c, i) =>
+          `${i + 1}. ${c.item.wineName} ${c.item.vintage} | ${c.item.producer} | ${c.item.country} ${c.item.region || ''} | ${c.item.medal} | ${c.item.session} ${c.item.year}`
+      )
+      .join('\n');
+
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini',
+      input: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: `
+You are identifying a wine bottle from an image using a candidate list from the official CMB database.
+
+Return STRICT JSON only:
+{
+  "matchIndex": 0,
+  "confidence": 0,
+  "reason": ""
+}
+
+Rules:
+- matchIndex is 1-based according to the candidate list in this batch.
+- If none clearly match, return 0.
+- Read the label visually: brand, cuvée, vintage, grape, style, sweetness, country, and producer.
+- For Icewine / Ice Wine / Vidal / White / Semi Sweet wines, do NOT choose red wines.
+- If the visible vintage is ${vintage || 'unknown'}, strongly prefer that vintage.
+- If label clearly says Nabaifu, choose the Nabaifu candidate.
+- If label clearly says Yizhu, choose the Yizhu candidate.
+- If label clearly says Heyu / He Jin / Happy Reunion, choose that candidate.
+- Do not choose a candidate only because it shares generic words like white, wine, ice, or sweet.
+- confidence must be between 0 and 1.
+
+Candidates:
+${candidateText}
+              `.trim(),
+            },
+            {
+              type: 'input_image',
+              image_url: capturedImage,
+              detail: 'high',
+            },
+          ],
+        },
+      ],
+    });
+
+    try {
+      const parsed = JSON.parse(
+        response.output_text.replace(/```json/g, '').replace(/```/g, '').trim()
+      );
+
+      const index = Number(parsed.matchIndex || 0);
+      const confidence = Number(parsed.confidence || 0);
+
+      if (index > 0 && confidence >= 0.7) {
+        return batch[index - 1]?.item || null;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 async function visualDoubleCheck(capturedImage: string, candidates: any[]) {
@@ -347,18 +437,41 @@ export async function POST(req: Request) {
           entry,
         ])
       ).values()
-    ).slice(0, 48);
+    ).slice(0, 60);
 
-    const visualMatch = await visualDoubleCheck(capturedImage, combinedVisualPool);
+    const textImageRescue = await visualTextRescue(
+      capturedImage,
+      combinedVisualPool,
+      vintage
+    );
 
-    if (visualMatch) {
-      best = visualMatch;
+    if (textImageRescue) {
+      best = textImageRescue;
+    } else {
+      const visualMatch = await visualDoubleCheck(
+        capturedImage,
+        combinedVisualPool
+      );
+
+      if (visualMatch) {
+        best = visualMatch;
+      }
     }
 
     if (!best) {
       return NextResponse.json({
         awarded: false,
         reason: 'low_confidence',
+      });
+    }
+
+    if (
+      hasAny(searchAll, ['white', 'icewine', 'ice wine']) &&
+      isClearlyRedCandidate(best)
+    ) {
+      return NextResponse.json({
+        awarded: false,
+        reason: 'blocked_red_false_positive',
       });
     }
 
