@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 function normalize(value: string = '') {
   return value
@@ -9,10 +14,6 @@ function normalize(value: string = '') {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[·•–—_\-\/]/g, ' ')
     .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(
-      /\b(estate|bottled|producer|cellars|vineyards|wine|vin|official|label|appellation|controlee|mis|bouteille)\b/g,
-      ' '
-    )
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -26,11 +27,8 @@ function tokens(value: string = '') {
 function tokenOverlap(source: string, target: string) {
   const a = tokens(source);
   const b = tokens(target);
-
   if (!a.length || !b.length) return 0;
-
-  const matches = a.filter((t) => b.includes(t)).length;
-  return matches / a.length;
+  return a.filter((t) => b.includes(t)).length / a.length;
 }
 
 function year(value: any) {
@@ -44,86 +42,90 @@ function sameVintage(a: string, b: string) {
   return aa === bb;
 }
 
-function hasAny(text: string, list: string[]) {
-  const normalized = normalize(text);
-  return list.some((item) => normalized.includes(normalize(item)));
+async function visualDoubleCheck(
+  capturedImage: string,
+  candidates: any[]
+) {
+  const visualCandidates = candidates
+    .filter((c) => c.item.imageUrl)
+    .slice(0, 6);
+
+  if (!capturedImage || visualCandidates.length === 0) return null;
+
+  const candidateText = visualCandidates
+    .map(
+      (c, i) =>
+        `${i + 1}. ${c.item.wineName} ${c.item.vintage} | ${c.item.producer} | ${c.item.medal}`
+    )
+    .join('\n');
+
+  const content: any[] = [
+    {
+      type: 'input_text',
+      text: `
+You are verifying whether a photographed wine bottle matches one of the official CMB database bottle images.
+
+Compare the first image, which is the user's captured bottle photo, against the candidate official bottle images.
+
+Return STRICT JSON only:
+{
+  "matchIndex": 0,
+  "confidence": 0,
+  "reason": ""
 }
 
-function stylePenalty(search: string, candidate: string) {
-  let penalty = 0;
+Rules:
+- matchIndex must be 1-based according to the candidate list.
+- If none clearly match, return matchIndex 0.
+- Use visual identity: label design, bottle shape, typography, colors, layout, capsule, and overall appearance.
+- Do not choose a candidate only because the text is similar.
+- confidence must be between 0 and 1.
 
-  const groups = [
-    {
-      words: ['chardonnay', 'riesling', 'viognier', 'sauvignon', 'blanc', 'white'],
-      conflicts: ['cabernet', 'merlot', 'syrah', 'malbec', 'marselan', 'red', 'rouge', 'roble', 'reserva'],
+Candidates:
+${candidateText}
+      `.trim(),
     },
     {
-      words: ['cabernet', 'merlot', 'syrah', 'malbec', 'marselan', 'red', 'rouge'],
-      conflicts: ['chardonnay', 'riesling', 'viognier', 'sauvignon', 'blanc', 'white'],
-    },
-    {
-      words: ['rose', 'rosé'],
-      conflicts: ['white', 'blanc', 'red', 'rouge', 'cabernet', 'chardonnay'],
+      type: 'input_image',
+      image_url: capturedImage,
+      detail: 'high',
     },
   ];
 
-  for (const group of groups) {
-    if (hasAny(search, group.words) && hasAny(candidate, group.conflicts)) {
-      penalty += 0.35;
-    }
+  for (const c of visualCandidates) {
+    content.push({
+      type: 'input_image',
+      image_url: c.item.imageUrl,
+      detail: 'high',
+    });
   }
 
-  return penalty;
-}
+  const response = await client.responses.create({
+    model: 'gpt-4.1-mini',
+    input: [
+      {
+        role: 'user',
+        content,
+      },
+    ],
+  });
 
-function categoryConflictPenalty(searchWine: string, candidateWine: string) {
-  let penalty = 0;
+  try {
+    const parsed = JSON.parse(
+      response.output_text.replace(/```json/g, '').replace(/```/g, '').trim()
+    );
 
-  const pairs = [
-    ['reserva', 'roble'],
-    ['grande reserva', 'roble'],
-    ['gran reserva', 'roble'],
-    ['brut', 'saten'],
-    ['nature', 'extra brut'],
-    ['white', 'red'],
-    ['blanco', 'tinto'],
-    ['branco', 'tinto'],
-  ];
+    const index = Number(parsed.matchIndex || 0);
+    const confidence = Number(parsed.confidence || 0);
 
-  for (const [searchTerm, conflictingTerm] of pairs) {
-    if (
-      normalize(searchWine).includes(normalize(searchTerm)) &&
-      normalize(candidateWine).includes(normalize(conflictingTerm))
-    ) {
-      penalty += 0.55;
+    if (index > 0 && confidence >= 0.72) {
+      return visualCandidates[index - 1]?.item || null;
     }
+
+    return null;
+  } catch {
+    return null;
   }
-
-  return penalty;
-}
-
-function criticalTokenMissPenalty(searchWine: string, candidateWine: string) {
-  const source = tokens(searchWine).filter((t) => t.length >= 5);
-  const candidate = tokens(candidateWine);
-
-  if (!source.length) return 0;
-
-  const missed = source.filter((t) => !candidate.includes(t));
-  return missed.length / source.length;
-}
-
-function isWeakNameMatch(searchWine: string, candidateWine: string) {
-  const source = tokens(searchWine).filter((t) => t.length >= 4);
-  const candidate = tokens(candidateWine);
-
-  if (!source.length) return true;
-
-  const matches = source.filter((t) => candidate.includes(t));
-
-  // Si sólo comparte una palabra genérica, es demasiado débil.
-  if (matches.length <= 1 && source.length >= 2) return true;
-
-  return false;
 }
 
 export async function POST(req: Request) {
@@ -134,6 +136,7 @@ export async function POST(req: Request) {
     const producer = String(body.producer || '');
     const vintage = String(body.vintage || '');
     const detectedText = String(body.detectedText || '');
+    const capturedImage = String(body.image || '');
 
     const filePath = path.join(
       process.cwd(),
@@ -174,22 +177,12 @@ export async function POST(req: Request) {
           vintage && item.vintage && String(vintage) === String(item.vintage);
 
         let score =
-          wineScore * 0.66 +
-          producerScore * 0.2 +
-          fullScore * 0.14;
+          wineScore * 0.62 +
+          producerScore * 0.23 +
+          fullScore * 0.15;
 
         if (vintageExact) score += 0.28;
-        if (vintage && !vintageOk) score -= 0.75;
-
-        score -= stylePenalty(searchAll, candidateAll);
-        score -= categoryConflictPenalty(searchWine, candidateWine);
-
-        const criticalPenalty = criticalTokenMissPenalty(
-          searchWine,
-          item.wineName || ''
-        );
-
-        score -= criticalPenalty * 0.38;
+        if (vintage && !vintageOk) score -= 0.7;
 
         score += year(item.year) * 0.000025;
 
@@ -200,44 +193,46 @@ export async function POST(req: Request) {
           producerScore,
           fullScore,
           vintageOk,
-          weakName: isWeakNameMatch(searchWine, candidateWine),
         };
-      })
-      .filter((entry: any) => {
-        if (!entry.vintageOk) return false;
-
-        // Evita falsos positivos tipo Reserva -> Roble.
-        if (entry.weakName && entry.wineScore < 0.85) return false;
-
-        // Si existe productor leído, debe ayudar salvo nombre exactísimo.
-        if (producer && entry.producerScore < 0.16 && entry.wineScore < 0.86) {
-          return false;
-        }
-
-        return entry.score >= 0.58;
       })
       .sort((a: any, b: any) => b.score - a.score);
 
-    if (!scored.length) {
+    const strongTextCandidates = scored.filter((entry: any) => {
+      if (!entry.vintageOk) return false;
+      if (entry.wineScore < 0.55) return false;
+      return entry.score >= 0.5;
+    });
+
+    let best = strongTextCandidates[0]?.item || null;
+
+    const visualCandidatePool =
+      strongTextCandidates.length > 0
+        ? strongTextCandidates
+        : scored.filter((x: any) => x.vintageOk).slice(0, 18);
+
+    const visualMatch = await visualDoubleCheck(
+      capturedImage,
+      visualCandidatePool
+    );
+
+    if (visualMatch) {
+      best = visualMatch;
+    }
+
+    if (!best) {
       return NextResponse.json({
         awarded: false,
         reason: 'low_confidence',
       });
     }
 
-    let best = scored[0].item;
-
     const sameWineRecords = records
       .filter((r: any) => {
-        const sameWine =
-          normalize(r.wineName || '') === normalize(best.wineName || '');
-
-        const sameProducer =
-          normalize(r.producer || '') === normalize(best.producer || '');
-
-        const vintageCompatible = sameVintage(vintage, r.vintage || '');
-
-        return sameWine && sameProducer && vintageCompatible;
+        return (
+          normalize(r.wineName || '') === normalize(best.wineName || '') &&
+          normalize(r.producer || '') === normalize(best.producer || '') &&
+          sameVintage(vintage, r.vintage || '')
+        );
       })
       .sort((a: any, b: any) => year(b.year) - year(a.year));
 
@@ -254,7 +249,6 @@ export async function POST(req: Request) {
       session: `${best.session} · ${best.year}`,
       feedbackUrl: best.resultUrl,
       productImageUrl: best.imageUrl,
-      confidence: Math.min(1, Math.max(0, scored[0].score)),
     });
   } catch (err) {
     console.error(err);

@@ -71,7 +71,6 @@ type Region = {
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-
     const reader = new FileReader();
 
     reader.onload = () => {
@@ -82,25 +81,20 @@ function fileToBase64(file: File): Promise<string> {
 
     img.onload = () => {
       const canvas = document.createElement('canvas');
-
       const maxWidth = 1400;
-
       const scale = maxWidth / img.width;
 
       canvas.width = maxWidth;
-
       canvas.height = img.height * scale;
 
       const ctx = canvas.getContext('2d');
 
       if (!ctx) {
         reject('No canvas context');
-
         return;
       }
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
       resolve(canvas.toDataURL('image/jpeg', 0.92));
     };
 
@@ -109,30 +103,19 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function Page() {
-  const [scanResult, setScanResult] =
-    useState<ScanResult>(null);
-
-  const [visionResult, setVisionResult] =
-    useState<VisionResult | null>(null);
-
+  const [scanResult, setScanResult] = useState<ScanResult>(null);
+  const [visionResult, setVisionResult] = useState<VisionResult | null>(null);
   const [loading, setLoading] = useState(false);
-
   const [regions, setRegions] = useState<Region[]>([]);
-
-  const [tab, setTab] =
-    useState<'scanner' | 'restaurants'>('scanner');
-
+  const [tab, setTab] = useState<'scanner' | 'restaurants'>('scanner');
   const [preview, setPreview] = useState<string | null>(null);
-
   const [status, setStatus] = useState('');
 
   useEffect(() => {
     async function loadRestaurants() {
       try {
         const res = await fetch('/api/restaurants');
-
         const data = await res.json();
-
         setRegions(data);
       } catch (e) {
         console.error(e);
@@ -151,18 +134,17 @@ export default function Page() {
   const scanCMBResults = async (
     detectedText: string,
     displayName: string,
-    visionData: VisionResult
+    visionData: VisionResult,
+    imageBase64: string
   ) => {
     const res = await fetch('/api/scan', {
       method: 'POST',
-
       headers: {
         'Content-Type': 'application/json',
       },
-
       body: JSON.stringify({
         detectedText,
-        image: detectedText,
+        image: imageBase64,
         wineName: visionData.wineName,
         producer: visionData.producer,
         vintage: visionData.vintage,
@@ -183,13 +165,9 @@ export default function Page() {
 
   const processImage = async (imageBase64: string) => {
     setLoading(true);
-
     setStatus('Analyzing label structure...');
-
     setPreview(imageBase64);
-
     setVisionResult(null);
-
     setScanResult(null);
 
     try {
@@ -197,11 +175,9 @@ export default function Page() {
 
       const visionResponse = await fetch('/api/vision', {
         method: 'POST',
-
         headers: {
           'Content-Type': 'application/json',
         },
-
         body: JSON.stringify({
           image: imageBase64,
         }),
@@ -232,17 +208,16 @@ export default function Page() {
       await scanCMBResults(
         detectedText,
         displayName,
-        visionData
+        visionData,
+        imageBase64
       );
     } catch (err) {
       console.error(err);
-
       setScanResult({
         awarded: false,
       });
     } finally {
       setLoading(false);
-
       setStatus('');
     }
   };
@@ -256,11 +231,9 @@ export default function Page() {
 
     try {
       const imageBase64 = await fileToBase64(file);
-
       await processImage(imageBase64);
     } catch (err) {
       console.error(err);
-
       setScanResult({
         awarded: false,
       });
@@ -271,7 +244,6 @@ export default function Page() {
     <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#3d240c_0%,#090909_38%,#000000_100%)] text-white">
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div className="absolute left-[-10%] top-[10%] h-[340px] w-[340px] rounded-full bg-amber-400/10 blur-3xl" />
-
         <div className="absolute right-[-5%] top-[35%] h-[280px] w-[280px] rounded-full bg-yellow-200/5 blur-3xl" />
       </div>
 
@@ -300,8 +272,7 @@ export default function Page() {
 
           <p className="mt-5 max-w-[92%] text-sm leading-relaxed text-stone-300">
             Scan a wine label to instantly verify official awards and
-            recognitions from the Concours Mondial de Bruxelles
-            global database.
+            recognitions from the Concours Mondial de Bruxelles global database.
           </p>
         </motion.div>
 
@@ -344,8 +315,7 @@ export default function Page() {
               </h2>
 
               <p className="mt-2 text-sm leading-relaxed text-stone-400">
-                Open the camera and align the wine label clearly
-                inside the frame.
+                Open the camera and align the wine label clearly inside the frame.
               </p>
 
               <label className="mt-7 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-amber-300 px-7 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]">
@@ -377,9 +347,7 @@ export default function Page() {
             )}
 
             <div className="rounded-[38px] border border-white/10 bg-white/[0.035] p-6 shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-              <h2 className="text-2xl font-semibold">
-                Result
-              </h2>
+              <h2 className="text-2xl font-semibold">Result</h2>
 
               <p className="mt-2 text-sm text-stone-400">
                 Official recognition verification
@@ -388,7 +356,6 @@ export default function Page() {
               {loading && (
                 <div className="mt-6 flex items-center gap-3 rounded-3xl border border-amber-300/15 bg-[linear-gradient(145deg,rgba(245,190,80,0.08),rgba(0,0,0,0.92))] p-5 text-sm text-amber-100 shadow-[0_12px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                   <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
-
                   {status || 'Processing...'}
                 </div>
               )}
@@ -401,24 +368,12 @@ export default function Page() {
 
               {scanResult?.awarded === true && (
                 <motion.div
-                  initial={{
-                    opacity: 0,
-                    y: 30,
-                    scale: 0.96,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    scale: 1,
-                  }}
-                  transition={{
-                    duration: 0.55,
-                    ease: 'easeOut',
-                  }}
+                  initial={{ opacity: 0, y: 30, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.55, ease: 'easeOut' }}
                   className="relative mt-8 overflow-hidden rounded-[42px] border border-amber-300/20 bg-[linear-gradient(160deg,rgba(245,190,80,0.12),rgba(0,0,0,0.96))] shadow-[0_30px_120px_rgba(0,0,0,0.78)]"
                 >
                   <div className="absolute left-[-15%] top-[10%] h-[260px] w-[260px] rounded-full bg-amber-300/10 blur-3xl" />
-
                   <div className="absolute right-[-10%] top-[20%] h-[220px] w-[220px] rounded-full bg-yellow-200/5 blur-3xl" />
 
                   <div className="relative z-10 px-7 pb-8 pt-7">
@@ -438,30 +393,17 @@ export default function Page() {
                       </div>
 
                       <motion.div
-                        animate={{
-                          rotate: [0, 2, -2, 0],
-                        }}
-                        transition={{
-                          duration: 5,
-                          repeat: Infinity,
-                        }}
+                        animate={{ rotate: [0, 2, -2, 0] }}
+                        transition={{ duration: 5, repeat: Infinity }}
                       >
                         <img
                           src={`/medals/${
-                            scanResult.medal
-                              .toLowerCase()
-                              .includes('grand')
+                            scanResult.medal.toLowerCase().includes('grand')
                               ? 'grand-gold'
-                              : scanResult.medal
-                                  .toLowerCase()
-                                  .includes('silver')
+                              : scanResult.medal.toLowerCase().includes('silver')
                               ? 'silver'
                               : 'gold'
-                          }-${
-                            scanResult.session.match(
-                              /\d{4}/
-                            )?.[0] || '2024'
-                          }.png`}
+                          }-${scanResult.session.match(/\d{4}/)?.[0] || '2024'}.png`}
                           alt="CMB Medal"
                           className="h-28 w-28 object-contain drop-shadow-[0_0_40px_rgba(245,190,80,0.35)]"
                         />
@@ -470,9 +412,7 @@ export default function Page() {
 
                     <div className="mt-10 flex items-center gap-5">
                       <motion.div
-                        animate={{
-                          y: [0, -6, 0],
-                        }}
+                        animate={{ y: [0, -6, 0] }}
                         transition={{
                           duration: 4,
                           repeat: Infinity,
@@ -506,7 +446,6 @@ export default function Page() {
                             <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                               Medal
                             </div>
-
                             <div className="mt-1 text-sm font-medium text-amber-300">
                               {scanResult.medal}
                             </div>
@@ -516,7 +455,6 @@ export default function Page() {
                             <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                               Session
                             </div>
-
                             <div className="mt-1 text-sm leading-relaxed text-stone-200">
                               {scanResult.session}
                             </div>
@@ -526,7 +464,6 @@ export default function Page() {
                             <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                               Producer
                             </div>
-
                             <div className="mt-1 text-sm leading-relaxed text-stone-200">
                               {scanResult.producer}
                             </div>
@@ -536,7 +473,6 @@ export default function Page() {
                             <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
                               Origin
                             </div>
-
                             <div className="mt-1 text-sm leading-relaxed text-stone-200">
                               {scanResult.country}
                             </div>
@@ -554,7 +490,6 @@ export default function Page() {
                       className="inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-5 py-4 text-sm font-semibold text-black shadow-lg shadow-amber-300/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(245,190,80,0.35)]"
                     >
                       Open Official CMB Result
-
                       <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
 
@@ -584,8 +519,8 @@ export default function Page() {
                   </div>
 
                   <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-stone-400">
-                    No official CMB recognition was found in the
-                    current database for this wine.
+                    No official CMB recognition was found in the current database
+                    for this wine.
                   </p>
 
                   <button
@@ -626,7 +561,6 @@ export default function Page() {
 
                       <div className="mt-1 flex items-center gap-2 text-sm text-stone-400">
                         <MapPin className="h-4 w-4 text-amber-300" />
-
                         {r.city}, {r.country}
                       </div>
                     </div>
