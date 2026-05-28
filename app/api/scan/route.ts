@@ -31,14 +31,18 @@ function rareTokens(value: string = '') {
 function overlap(source: string, target: string) {
   const a = tokens(source);
   const b = tokens(target);
+
   if (!a.length || !b.length) return 0;
+
   return a.filter((t) => b.includes(t)).length / a.length;
 }
 
 function rareOverlap(source: string, target: string) {
   const a = rareTokens(source);
   const b = tokens(target);
+
   if (!a.length || !b.length) return 0;
+
   return a.filter((t) => b.includes(t)).length / a.length;
 }
 
@@ -49,7 +53,9 @@ function year(value: any) {
 function sameVintage(a: string, b: string) {
   const aa = String(a || '').match(/\d{4}/)?.[0] || '';
   const bb = String(b || '').match(/\d{4}/)?.[0] || '';
+
   if (!aa || !bb) return true;
+
   return aa === bb;
 }
 
@@ -63,13 +69,12 @@ function hardConflict(search: string, candidate: string) {
   const c = normalize(candidate);
 
   const criticalGroups = [
+    ['nabaifu'],
+    ['heyu'],
     ['vidal'],
     ['icewine', 'ice wine'],
     ['semi sweet', 'semisweet'],
     ['happy', 'reunion'],
-    ['nabaifu'],
-    ['heyu'],
-    ['jin'],
   ];
 
   for (const group of criticalGroups) {
@@ -81,11 +86,10 @@ function hardConflict(search: string, candidate: string) {
     }
   }
 
-  if (hasAny(s, ['white', 'blanc', 'branco']) && hasAny(c, ['red', 'rouge', 'cabernet', 'merlot', 'syrah', 'marselan'])) {
-    return true;
-  }
-
-  if (hasAny(s, ['icewine', 'ice wine']) && !hasAny(c, ['icewine', 'ice wine'])) {
+  if (
+    hasAny(s, ['white', 'blanc', 'branco']) &&
+    hasAny(c, ['red', 'rouge', 'cabernet', 'merlot', 'syrah', 'marselan'])
+  ) {
     return true;
   }
 
@@ -95,9 +99,11 @@ function hardConflict(search: string, candidate: string) {
 async function visualDoubleCheck(capturedImage: string, candidates: any[]) {
   const visualCandidates = candidates
     .filter((c) => c.item?.imageUrl)
-    .slice(0, 8);
+    .slice(0, 10);
 
-  if (!capturedImage || visualCandidates.length === 0) return null;
+  if (!capturedImage || visualCandidates.length === 0) {
+    return null;
+  }
 
   const candidateText = visualCandidates
     .map(
@@ -125,6 +131,7 @@ Rules:
 - Use visual identity: label design, bottle shape, typography, colors, layout, capsule, and overall appearance.
 - Do not choose a candidate if the bottle is visually different.
 - Do not choose a candidate only because the text is vaguely similar.
+- If the label design is clearly the same product family and the name/vintage are compatible, choose it.
 - confidence must be between 0 and 1.
 
 Candidates:
@@ -158,13 +165,16 @@ ${candidateText}
 
   try {
     const parsed = JSON.parse(
-      response.output_text.replace(/```json/g, '').replace(/```/g, '').trim()
+      response.output_text
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim()
     );
 
     const index = Number(parsed.matchIndex || 0);
     const confidence = Number(parsed.confidence || 0);
 
-    if (index > 0 && confidence >= 0.78) {
+    if (index > 0 && confidence >= 0.72) {
       return visualCandidates[index - 1]?.item || null;
     }
 
@@ -217,11 +227,16 @@ export async function POST(req: Request) {
         ].join(' ');
 
         const wineScore = overlap(searchWine, candidateWine);
-        const producerScore = producer ? overlap(producer, item.producer || '') : 0;
+        const producerScore = producer
+          ? overlap(producer, item.producer || '')
+          : 0;
         const fullScore = overlap(searchAll, candidateAll);
         const rareScore = rareOverlap(searchAll, candidateAll);
         const vintageOk = sameVintage(vintage, item.vintage || '');
-        const vintageExact = vintage && item.vintage && String(vintage) === String(item.vintage);
+        const vintageExact =
+          vintage &&
+          item.vintage &&
+          String(vintage) === String(item.vintage);
 
         let score =
           wineScore * 0.52 +
@@ -253,18 +268,6 @@ export async function POST(req: Request) {
         if (!entry.vintageOk) return false;
         if (hardConflict(searchAll, entry.candidateAll)) return false;
 
-        if (hasAny(searchAll, ['vidal']) && !hasAny(entry.candidateAll, ['vidal'])) {
-          return false;
-        }
-
-        if (hasAny(searchAll, ['icewine', 'ice wine']) && !hasAny(entry.candidateAll, ['icewine', 'ice wine'])) {
-          return false;
-        }
-
-        if (hasAny(searchAll, ['semi sweet', 'semisweet']) && !hasAny(entry.candidateAll, ['semi sweet', 'semisweet', 'sweet'])) {
-          return false;
-        }
-
         return (
           entry.wineScore >= 0.42 ||
           entry.rareScore >= 0.25 ||
@@ -279,11 +282,66 @@ export async function POST(req: Request) {
 
     let best = strongTextCandidates[0]?.item || null;
 
-    const visualPool = scored
-      .filter((entry: any) => entry.item.imageUrl)
-      .slice(0, 16);
+    const visualPool = records
+      .filter((item: any) => {
+        if (!item.imageUrl) return false;
 
-    const visualMatch = await visualDoubleCheck(capturedImage, visualPool);
+        const candidateText = [
+          item.wineName,
+          item.producer,
+          item.vintage,
+          item.country,
+          item.region,
+          item.session,
+          item.medal,
+        ].join(' ');
+
+        const base = overlap(searchAll, candidateText);
+        const rare = rareOverlap(searchAll, candidateText);
+
+        return (
+          base >= 0.12 ||
+          rare >= 0.08 ||
+          (hasAny(searchAll, ['nabaifu']) &&
+            hasAny(candidateText, ['nabaifu'])) ||
+          (hasAny(searchAll, ['heyu']) &&
+            hasAny(candidateText, ['heyu'])) ||
+          (hasAny(searchAll, ['vidal']) &&
+            hasAny(candidateText, ['vidal'])) ||
+          (hasAny(searchAll, ['icewine', 'ice wine']) &&
+            hasAny(candidateText, ['icewine', 'ice wine'])) ||
+          (hasAny(searchAll, ['semi sweet', 'semisweet']) &&
+            hasAny(candidateText, ['semi sweet', 'semisweet', 'sweet']))
+        );
+      })
+      .map((item: any) => ({
+        item,
+        score: overlap(searchAll, [
+          item.wineName,
+          item.producer,
+          item.vintage,
+          item.country,
+          item.region,
+          item.session,
+          item.medal,
+        ].join(' ')),
+      }))
+      .sort((a: any, b: any) => {
+        const av =
+          String(a.item.vintage || '') === String(vintage || '') ? 1 : 0;
+        const bv =
+          String(b.item.vintage || '') === String(vintage || '') ? 1 : 0;
+
+        if (bv !== av) return bv - av;
+
+        return b.score - a.score;
+      })
+      .slice(0, 40);
+
+    const visualMatch = await visualDoubleCheck(
+      capturedImage,
+      visualPool
+    );
 
     if (visualMatch) {
       best = visualMatch;
