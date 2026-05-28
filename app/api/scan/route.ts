@@ -19,9 +19,7 @@ function normalize(value: string = '') {
 }
 
 function tokens(value: string = '') {
-  return normalize(value)
-    .split(' ')
-    .filter((t) => t.length >= 3);
+  return normalize(value).split(' ').filter((t) => t.length >= 3);
 }
 
 function rareTokens(value: string = '') {
@@ -31,18 +29,14 @@ function rareTokens(value: string = '') {
 function overlap(source: string, target: string) {
   const a = tokens(source);
   const b = tokens(target);
-
   if (!a.length || !b.length) return 0;
-
   return a.filter((t) => b.includes(t)).length / a.length;
 }
 
 function rareOverlap(source: string, target: string) {
   const a = rareTokens(source);
   const b = tokens(target);
-
   if (!a.length || !b.length) return 0;
-
   return a.filter((t) => b.includes(t)).length / a.length;
 }
 
@@ -53,65 +47,13 @@ function year(value: any) {
 function sameVintage(a: string, b: string) {
   const aa = String(a || '').match(/\d{4}/)?.[0] || '';
   const bb = String(b || '').match(/\d{4}/)?.[0] || '';
-
   if (!aa || !bb) return true;
-
   return aa === bb;
 }
 
 function hasAny(text: string, words: string[]) {
   const n = normalize(text);
   return words.some((w) => n.includes(normalize(w)));
-}
-
-function hasAll(text: string, words: string[]) {
-  const n = normalize(text);
-  return words.every((w) => n.includes(normalize(w)));
-}
-
-function identityGate(search: string, candidate: string) {
-  const s = normalize(search);
-  const c = normalize(candidate);
-
-  const identityTerms = [
-    'nabaifu',
-    'heyu',
-    'yizhu',
-    'happy',
-    'reunion',
-    'classic',
-    'clasic',
-    'vidal',
-    'icewine',
-    'ice wine',
-  ];
-
-  for (const term of identityTerms) {
-    if (s.includes(normalize(term)) && !c.includes(normalize(term))) {
-      if (term === 'ice wine' && c.includes('icewine')) continue;
-      if (term === 'icewine' && c.includes('ice wine')) continue;
-      if (term === 'classic' && c.includes('clasic')) continue;
-      if (term === 'clasic' && c.includes('classic')) continue;
-
-      return false;
-    }
-  }
-
-  if (
-    hasAny(s, ['white', 'blanc', 'branco']) &&
-    hasAny(c, ['red', 'rouge', 'tinto', 'cabernet', 'merlot', 'syrah', 'marselan'])
-  ) {
-    return false;
-  }
-
-  if (
-    hasAny(s, ['semi sweet', 'semisweet']) &&
-    !hasAny(c, ['semi sweet', 'semisweet', 'sweet'])
-  ) {
-    return false;
-  }
-
-  return true;
 }
 
 function getCandidateText(item: any) {
@@ -128,29 +70,96 @@ function getCandidateText(item: any) {
     item.award,
     item.medal,
     item.session,
+    item.concours,
   ].join(' ');
 }
 
-async function visualDoubleCheck(capturedImage: string, candidates: any[]) {
-  const visualCandidates = candidates
-    .filter((c) => c.item?.imageUrl)
-    .slice(0, 10);
+function identityCompatible(search: string, candidate: string) {
+  const s = normalize(search);
+  const c = normalize(candidate);
 
-  if (!capturedImage || visualCandidates.length === 0) {
-    return null;
+  const critical = [
+    'nabaifu',
+    'heyu',
+    'yizhu',
+    'happy',
+    'reunion',
+    'vidal',
+    'icewine',
+    'ice wine',
+    'semi sweet',
+    'semisweet',
+  ];
+
+  for (const term of critical) {
+    const st = normalize(term);
+
+    if (s.includes(st)) {
+      if (st === 'ice wine' && c.includes('icewine')) continue;
+      if (st === 'icewine' && c.includes('ice wine')) continue;
+      if (st === 'semi sweet' && c.includes('semisweet')) continue;
+      if (st === 'semisweet' && c.includes('semi sweet')) continue;
+
+      if (!c.includes(st)) return false;
+    }
   }
 
-  const candidateText = visualCandidates
-    .map(
-      (c, i) =>
-        `${i + 1}. ${c.item.wineName} ${c.item.vintage} | ${c.item.producer} | ${c.item.medal} | ${c.item.session} ${c.item.year}`
-    )
-    .join('\n');
+  if (
+    hasAny(s, ['white', 'blanc', 'branco']) &&
+    hasAny(c, ['red', 'rouge', 'tinto', 'vranec', 'cabernet', 'merlot', 'syrah', 'marselan'])
+  ) {
+    return false;
+  }
 
-  const content: any[] = [
-    {
-      type: 'input_text',
-      text: `
+  if (
+    hasAny(s, ['icewine', 'ice wine']) &&
+    !hasAny(c, ['icewine', 'ice wine'])
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function isSweetWhiteRescueCandidate(item: any) {
+  const text = getCandidateText(item);
+
+  return (
+    item.imageUrl &&
+    (
+      hasAny(text, ['icewine', 'ice wine']) ||
+      hasAny(text, ['vidal']) ||
+      hasAny(text, ['sweet']) ||
+      hasAny(text, ['white', 'blanc']) ||
+      hasAny(text, ['nabaifu', 'heyu', 'yizhu'])
+    ) &&
+    !hasAny(text, ['red', 'rouge', 'tinto', 'vranec', 'cabernet', 'merlot', 'syrah', 'marselan'])
+  );
+}
+
+async function visualDoubleCheck(capturedImage: string, candidates: any[]) {
+  const visualCandidates = candidates.filter((c) => c.item?.imageUrl);
+
+  if (!capturedImage || visualCandidates.length === 0) return null;
+
+  const batches = [];
+
+  for (let i = 0; i < visualCandidates.length; i += 8) {
+    batches.push(visualCandidates.slice(i, i + 8));
+  }
+
+  for (const batch of batches) {
+    const candidateText = batch
+      .map(
+        (c, i) =>
+          `${i + 1}. ${c.item.wineName} ${c.item.vintage} | ${c.item.producer} | ${c.item.medal} | ${c.item.session} ${c.item.year}`
+      )
+      .join('\n');
+
+    const content: any[] = [
+      {
+        type: 'input_text',
+        text: `
 Compare the first image, which is the user's captured wine bottle, against the official CMB candidate bottle images.
 
 Return STRICT JSON only:
@@ -161,62 +170,60 @@ Return STRICT JSON only:
 }
 
 Rules:
-- matchIndex is 1-based according to the candidate list.
+- matchIndex is 1-based according to the candidate list in this batch.
 - If none clearly match, return matchIndex 0.
 - Use visual identity: label design, bottle shape, typography, colors, layout, capsule, and overall appearance.
 - Do not choose a candidate if the bottle is visually different.
-- Do not choose a candidate only because the text is vaguely similar.
-- If text says Icewine, Vidal, White, Nabaifu, Heyu, Yizhu, Happy Reunion, Classic, or Semi Sweet, reject visually different product families.
+- Do not choose red wine candidates for white/icewine labels.
+- For Icewine/Vidal/Semi Sweet/White wines, prioritize label family and exact bottle appearance.
 - confidence must be between 0 and 1.
 
 Candidates:
 ${candidateText}
-      `.trim(),
-    },
-    {
-      type: 'input_image',
-      image_url: capturedImage,
-      detail: 'high',
-    },
-  ];
-
-  for (const c of visualCandidates) {
-    content.push({
-      type: 'input_image',
-      image_url: c.item.imageUrl,
-      detail: 'high',
-    });
-  }
-
-  const response = await client.responses.create({
-    model: 'gpt-4.1-mini',
-    input: [
-      {
-        role: 'user',
-        content,
+        `.trim(),
       },
-    ],
-  });
+      {
+        type: 'input_image',
+        image_url: capturedImage,
+        detail: 'high',
+      },
+    ];
 
-  try {
-    const parsed = JSON.parse(
-      response.output_text
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim()
-    );
-
-    const index = Number(parsed.matchIndex || 0);
-    const confidence = Number(parsed.confidence || 0);
-
-    if (index > 0 && confidence >= 0.74) {
-      return visualCandidates[index - 1]?.item || null;
+    for (const c of batch) {
+      content.push({
+        type: 'input_image',
+        image_url: c.item.imageUrl,
+        detail: 'high',
+      });
     }
 
-    return null;
-  } catch {
-    return null;
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini',
+      input: [
+        {
+          role: 'user',
+          content,
+        },
+      ],
+    });
+
+    try {
+      const parsed = JSON.parse(
+        response.output_text.replace(/```json/g, '').replace(/```/g, '').trim()
+      );
+
+      const index = Number(parsed.matchIndex || 0);
+      const confidence = Number(parsed.confidence || 0);
+
+      if (index > 0 && confidence >= 0.72) {
+        return batch[index - 1]?.item || null;
+      }
+    } catch {
+      continue;
+    }
   }
+
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -248,28 +255,24 @@ export async function POST(req: Request) {
         const candidateAll = getCandidateText(item);
 
         const wineScore = overlap(searchWine, candidateWine);
-        const producerScore = producer
-          ? overlap(producer, item.producer || '')
-          : 0;
+        const producerScore = producer ? overlap(producer, item.producer || '') : 0;
         const fullScore = overlap(searchAll, candidateAll);
         const rareScore = rareOverlap(searchAll, candidateAll);
         const vintageOk = sameVintage(vintage, item.vintage || '');
         const vintageExact =
-          vintage &&
-          item.vintage &&
-          String(vintage) === String(item.vintage);
+          vintage && item.vintage && String(vintage) === String(item.vintage);
 
         let score =
-          wineScore * 0.52 +
-          producerScore * 0.16 +
-          fullScore * 0.12 +
+          wineScore * 0.5 +
+          producerScore * 0.15 +
+          fullScore * 0.15 +
           rareScore * 0.2;
 
-        if (vintageExact) score += 0.36;
-        if (vintage && !vintageOk) score -= 1.1;
+        if (vintageExact) score += 0.4;
+        if (vintage && !vintageOk) score -= 1.2;
 
-        if (!identityGate(searchAll, candidateAll)) {
-          score -= 2;
+        if (!identityCompatible(searchAll, candidateAll)) {
+          score -= 2.5;
         }
 
         score += year(item.year) * 0.00002;
@@ -287,69 +290,40 @@ export async function POST(req: Request) {
       })
       .filter((entry: any) => {
         if (!entry.vintageOk) return false;
-        if (!identityGate(searchAll, entry.candidateAll)) return false;
+        if (!identityCompatible(searchAll, entry.candidateAll)) return false;
 
         return (
-          entry.wineScore >= 0.38 ||
-          entry.rareScore >= 0.18 ||
-          entry.fullScore >= 0.22
+          entry.wineScore >= 0.35 ||
+          entry.rareScore >= 0.16 ||
+          entry.fullScore >= 0.2
         );
       })
       .sort((a: any, b: any) => b.score - a.score);
 
-    const exactIdentityCandidates = scored.filter((entry: any) => {
-      const candidate = entry.candidateAll;
-
-      if (hasAny(searchAll, ['nabaifu']) && !hasAny(candidate, ['nabaifu'])) {
-        return false;
-      }
-
-      if (hasAny(searchAll, ['heyu']) && !hasAny(candidate, ['heyu'])) {
-        return false;
-      }
-
-      if (hasAny(searchAll, ['yizhu']) && !hasAny(candidate, ['yizhu'])) {
-        return false;
-      }
-
-      if (hasAny(searchAll, ['icewine', 'ice wine']) && !hasAny(candidate, ['icewine', 'ice wine'])) {
-        return false;
-      }
-
-      if (hasAny(searchAll, ['vidal']) && !hasAny(candidate, ['vidal'])) {
-        return false;
-      }
-
-      return entry.score >= 0.45;
-    });
-
     let best =
-      exactIdentityCandidates[0]?.item ||
-      scored.find((entry: any) => entry.score >= 0.62)?.item ||
-      null;
+      scored.find((entry: any) => entry.score >= 0.68)?.item || null;
 
-    const visualPool = records
+    const normalVisualPool = scored
+      .filter((entry: any) => entry.item.imageUrl)
+      .slice(0, 24);
+
+    const rescueVisualPool = records
       .filter((item: any) => {
-        if (!item.imageUrl) return false;
+        if (!isSweetWhiteRescueCandidate(item)) return false;
 
-        const candidateText = getCandidateText(item);
+        const text = getCandidateText(item);
 
-        if (!identityGate(searchAll, candidateText)) return false;
+        if (!identityCompatible(searchAll, text)) return false;
 
-        const base = overlap(searchAll, candidateText);
-        const rare = rareOverlap(searchAll, candidateText);
+        if (
+          vintage &&
+          item.vintage &&
+          String(vintage) !== String(item.vintage)
+        ) {
+          return false;
+        }
 
-        return (
-          base >= 0.1 ||
-          rare >= 0.07 ||
-          (hasAny(searchAll, ['nabaifu']) && hasAny(candidateText, ['nabaifu'])) ||
-          (hasAny(searchAll, ['heyu']) && hasAny(candidateText, ['heyu'])) ||
-          (hasAny(searchAll, ['yizhu']) && hasAny(candidateText, ['yizhu'])) ||
-          (hasAny(searchAll, ['vidal']) && hasAny(candidateText, ['vidal'])) ||
-          (hasAny(searchAll, ['icewine', 'ice wine']) &&
-            hasAny(candidateText, ['icewine', 'ice wine'])) ||
-          (hasAny(searchAll, ['white']) && hasAny(candidateText, ['white', 'blanc']))
-        );
+        return true;
       })
       .map((item: any) => ({
         item,
@@ -364,13 +338,18 @@ export async function POST(req: Request) {
         if (bv !== av) return bv - av;
 
         return b.score - a.score;
-      })
-      .slice(0, 40);
+      });
 
-    const visualMatch = await visualDoubleCheck(
-      capturedImage,
-      visualPool
-    );
+    const combinedVisualPool = Array.from(
+      new Map(
+        [...normalVisualPool, ...rescueVisualPool].map((entry: any) => [
+          `${entry.item.wineName}-${entry.item.vintage}-${entry.item.producer}`,
+          entry,
+        ])
+      ).values()
+    ).slice(0, 48);
+
+    const visualMatch = await visualDoubleCheck(capturedImage, combinedVisualPool);
 
     if (visualMatch) {
       best = visualMatch;
