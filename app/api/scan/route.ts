@@ -64,36 +64,71 @@ function hasAny(text: string, words: string[]) {
   return words.some((w) => n.includes(normalize(w)));
 }
 
-function hardConflict(search: string, candidate: string) {
+function hasAll(text: string, words: string[]) {
+  const n = normalize(text);
+  return words.every((w) => n.includes(normalize(w)));
+}
+
+function identityGate(search: string, candidate: string) {
   const s = normalize(search);
   const c = normalize(candidate);
 
-  const criticalGroups = [
-    ['nabaifu'],
-    ['heyu'],
-    ['vidal'],
-    ['icewine', 'ice wine'],
-    ['semi sweet', 'semisweet'],
-    ['happy', 'reunion'],
+  const identityTerms = [
+    'nabaifu',
+    'heyu',
+    'yizhu',
+    'happy',
+    'reunion',
+    'classic',
+    'clasic',
+    'vidal',
+    'icewine',
+    'ice wine',
   ];
 
-  for (const group of criticalGroups) {
-    const searchHas = group.some((w) => s.includes(normalize(w)));
-    const candidateHas = group.some((w) => c.includes(normalize(w)));
+  for (const term of identityTerms) {
+    if (s.includes(normalize(term)) && !c.includes(normalize(term))) {
+      if (term === 'ice wine' && c.includes('icewine')) continue;
+      if (term === 'icewine' && c.includes('ice wine')) continue;
+      if (term === 'classic' && c.includes('clasic')) continue;
+      if (term === 'clasic' && c.includes('classic')) continue;
 
-    if (searchHas && !candidateHas) {
-      return true;
+      return false;
     }
   }
 
   if (
     hasAny(s, ['white', 'blanc', 'branco']) &&
-    hasAny(c, ['red', 'rouge', 'cabernet', 'merlot', 'syrah', 'marselan'])
+    hasAny(c, ['red', 'rouge', 'tinto', 'cabernet', 'merlot', 'syrah', 'marselan'])
   ) {
-    return true;
+    return false;
   }
 
-  return false;
+  if (
+    hasAny(s, ['semi sweet', 'semisweet']) &&
+    !hasAny(c, ['semi sweet', 'semisweet', 'sweet'])
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function getCandidateText(item: any) {
+  return [
+    item.wineName,
+    item.producer,
+    item.vintage,
+    item.country,
+    item.region,
+    item.appellation,
+    item.color,
+    item.type,
+    item.subType,
+    item.award,
+    item.medal,
+    item.session,
+  ].join(' ');
 }
 
 async function visualDoubleCheck(capturedImage: string, candidates: any[]) {
@@ -131,7 +166,7 @@ Rules:
 - Use visual identity: label design, bottle shape, typography, colors, layout, capsule, and overall appearance.
 - Do not choose a candidate if the bottle is visually different.
 - Do not choose a candidate only because the text is vaguely similar.
-- If the label design is clearly the same product family and the name/vintage are compatible, choose it.
+- If text says Icewine, Vidal, White, Nabaifu, Heyu, Yizhu, Happy Reunion, Classic, or Semi Sweet, reject visually different product families.
 - confidence must be between 0 and 1.
 
 Candidates:
@@ -174,7 +209,7 @@ ${candidateText}
     const index = Number(parsed.matchIndex || 0);
     const confidence = Number(parsed.confidence || 0);
 
-    if (index > 0 && confidence >= 0.72) {
+    if (index > 0 && confidence >= 0.74) {
       return visualCandidates[index - 1]?.item || null;
     }
 
@@ -210,21 +245,7 @@ export async function POST(req: Request) {
     const scored = records
       .map((item: any) => {
         const candidateWine = `${item.wineName || ''} ${item.vintage || ''}`;
-
-        const candidateAll = [
-          item.wineName,
-          item.producer,
-          item.vintage,
-          item.country,
-          item.region,
-          item.appellation,
-          item.color,
-          item.type,
-          item.subType,
-          item.award,
-          item.medal,
-          item.session,
-        ].join(' ');
+        const candidateAll = getCandidateText(item);
 
         const wineScore = overlap(searchWine, candidateWine);
         const producerScore = producer
@@ -244,11 +265,11 @@ export async function POST(req: Request) {
           fullScore * 0.12 +
           rareScore * 0.2;
 
-        if (vintageExact) score += 0.3;
-        if (vintage && !vintageOk) score -= 0.9;
+        if (vintageExact) score += 0.36;
+        if (vintage && !vintageOk) score -= 1.1;
 
-        if (hardConflict(searchAll, candidateAll)) {
-          score -= 1.2;
+        if (!identityGate(searchAll, candidateAll)) {
+          score -= 2;
         }
 
         score += year(item.year) * 0.00002;
@@ -266,65 +287,73 @@ export async function POST(req: Request) {
       })
       .filter((entry: any) => {
         if (!entry.vintageOk) return false;
-        if (hardConflict(searchAll, entry.candidateAll)) return false;
+        if (!identityGate(searchAll, entry.candidateAll)) return false;
 
         return (
-          entry.wineScore >= 0.42 ||
-          entry.rareScore >= 0.25 ||
-          entry.fullScore >= 0.28
+          entry.wineScore >= 0.38 ||
+          entry.rareScore >= 0.18 ||
+          entry.fullScore >= 0.22
         );
       })
       .sort((a: any, b: any) => b.score - a.score);
 
-    const strongTextCandidates = scored.filter((entry: any) => {
-      return entry.score >= 0.55 && entry.wineScore >= 0.45;
+    const exactIdentityCandidates = scored.filter((entry: any) => {
+      const candidate = entry.candidateAll;
+
+      if (hasAny(searchAll, ['nabaifu']) && !hasAny(candidate, ['nabaifu'])) {
+        return false;
+      }
+
+      if (hasAny(searchAll, ['heyu']) && !hasAny(candidate, ['heyu'])) {
+        return false;
+      }
+
+      if (hasAny(searchAll, ['yizhu']) && !hasAny(candidate, ['yizhu'])) {
+        return false;
+      }
+
+      if (hasAny(searchAll, ['icewine', 'ice wine']) && !hasAny(candidate, ['icewine', 'ice wine'])) {
+        return false;
+      }
+
+      if (hasAny(searchAll, ['vidal']) && !hasAny(candidate, ['vidal'])) {
+        return false;
+      }
+
+      return entry.score >= 0.45;
     });
 
-    let best = strongTextCandidates[0]?.item || null;
+    let best =
+      exactIdentityCandidates[0]?.item ||
+      scored.find((entry: any) => entry.score >= 0.62)?.item ||
+      null;
 
     const visualPool = records
       .filter((item: any) => {
         if (!item.imageUrl) return false;
 
-        const candidateText = [
-          item.wineName,
-          item.producer,
-          item.vintage,
-          item.country,
-          item.region,
-          item.session,
-          item.medal,
-        ].join(' ');
+        const candidateText = getCandidateText(item);
+
+        if (!identityGate(searchAll, candidateText)) return false;
 
         const base = overlap(searchAll, candidateText);
         const rare = rareOverlap(searchAll, candidateText);
 
         return (
-          base >= 0.12 ||
-          rare >= 0.08 ||
-          (hasAny(searchAll, ['nabaifu']) &&
-            hasAny(candidateText, ['nabaifu'])) ||
-          (hasAny(searchAll, ['heyu']) &&
-            hasAny(candidateText, ['heyu'])) ||
-          (hasAny(searchAll, ['vidal']) &&
-            hasAny(candidateText, ['vidal'])) ||
+          base >= 0.1 ||
+          rare >= 0.07 ||
+          (hasAny(searchAll, ['nabaifu']) && hasAny(candidateText, ['nabaifu'])) ||
+          (hasAny(searchAll, ['heyu']) && hasAny(candidateText, ['heyu'])) ||
+          (hasAny(searchAll, ['yizhu']) && hasAny(candidateText, ['yizhu'])) ||
+          (hasAny(searchAll, ['vidal']) && hasAny(candidateText, ['vidal'])) ||
           (hasAny(searchAll, ['icewine', 'ice wine']) &&
             hasAny(candidateText, ['icewine', 'ice wine'])) ||
-          (hasAny(searchAll, ['semi sweet', 'semisweet']) &&
-            hasAny(candidateText, ['semi sweet', 'semisweet', 'sweet']))
+          (hasAny(searchAll, ['white']) && hasAny(candidateText, ['white', 'blanc']))
         );
       })
       .map((item: any) => ({
         item,
-        score: overlap(searchAll, [
-          item.wineName,
-          item.producer,
-          item.vintage,
-          item.country,
-          item.region,
-          item.session,
-          item.medal,
-        ].join(' ')),
+        score: overlap(searchAll, getCandidateText(item)),
       }))
       .sort((a: any, b: any) => {
         const av =
